@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
-import { validateBody } from "../../middlewares/validation.middleware";
 import { RegisterDTO } from "./dto/register.dto";
 import { LoginDTO } from "./dto/login.dto";
 import { ForgotPasswordDTO } from "./dto/forgot-password.dto";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { JWT_SECRET_RESET } from "../../config/env";
 import { ResetPasswordDTO } from "./dto/reset-password.dto";
+import { validateBody } from "../../middlewares/validation.middleware";
 
 export class AuthRouter {
   private router: Router;

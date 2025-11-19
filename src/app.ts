@@ -1,8 +1,9 @@
 import express, { Express } from "express";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import cors from "cors";
-import { SampleRoute } from "./modules/sample/sample.route";
 import { PORT } from "./config/env";
+import { AuthRouter } from "./modules/auth/auth.router";
+import { UserUpdateRouter } from "./modules/users/user.router";
 
 export class App {
   app: Express;
@@ -19,9 +20,11 @@ export class App {
   }
 
   private routes() {
-    const sampleRoute = new SampleRoute();
+    const authRouter = new AuthRouter();
+    const userUpdaterouter = new UserUpdateRouter();
 
-    this.app.use("/samples", sampleRoute.getRouter());
+    this.app.use("/auth", authRouter.getRouter());
+    this.app.use("/users", userUpdaterouter.getRouter());
   }
 
   private handleError() {
