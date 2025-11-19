@@ -15,10 +15,6 @@ export class RegisterDTO {
   password!: string;
 
   @IsOptional()
-  @IsString()
-  referralCode?: string;
-
-  @IsOptional()
   @IsEnum(Role)
-  role?: Role;
+  role?: Role
 }

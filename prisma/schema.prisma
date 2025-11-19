@@ -12,8 +12,8 @@ model User {
   id                String             @id @default(cuid())
   name              String
   email             String             @unique
-  password          String?
-  role              Role
+  password          String
+  role              Role               @default(CUSTOMER)
   emailVerified     Boolean            @default(false)
   profilePicture    String?
   addresses         Address[]
