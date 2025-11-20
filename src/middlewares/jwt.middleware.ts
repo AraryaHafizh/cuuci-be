@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiError } from "../utils/api-error";
 import { verify } from "jsonwebtoken";
-import { Role } from "../generated/prisma";
+import { Role } from "../generated/prisma/enums";
 
 export class JwtMiddleware {
   verifyToken = (secretKey: string) => {

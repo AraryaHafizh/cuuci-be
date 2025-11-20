@@ -9,5 +9,5 @@ export const errorMiddleware = (
 ) => {
   const msg = err.message || "something went wrong";
   const status = err.status || 500;
-  res.status(status).send(msg);
+  res.status(status).send({message: msg});
 };

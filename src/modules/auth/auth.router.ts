@@ -4,7 +4,7 @@ import { RegisterDTO } from "./dto/register.dto";
 import { LoginDTO } from "./dto/login.dto";
 import { ForgotPasswordDTO } from "./dto/forgot-password.dto";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
-import { JWT_SECRET_RESET } from "../../config/env";
+import { JWT_SECRET_RESET, JWT_SECRET_VERIFY } from "../../config/env";
 import { ResetPasswordDTO } from "./dto/reset-password.dto";
 import { validateBody } from "../../middlewares/validation.middleware";
 
@@ -25,6 +25,10 @@ export class AuthRouter {
       "/register",
       validateBody(RegisterDTO),
       this.authController.register
+    );
+    this.router.get(
+      "/verify-email",
+      this.authController.verifyEmail
     );
     this.router.post(
       "/login",

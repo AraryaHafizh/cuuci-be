@@ -1,8 +1,8 @@
 // src/modules/attendance/attendance.service.ts
 import { PrismaService } from "../prisma/prisma.service";
-import { Role } from "../../generated/prisma";
 import { GetAttendanceLogDTO, GetAttendanceReportDTO } from "./dto/attendance.dto";
 import { ApiError } from "../../utils/api-error";
+import { Role } from "../../generated/prisma/enums";
 
 export class AttendanceService {
   private prisma: PrismaService;
