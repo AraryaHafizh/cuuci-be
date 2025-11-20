@@ -4,9 +4,6 @@ import cors from "cors";
 import { PORT } from "./config/env";
 import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
-
-// ⭐ ADD THESE TWO IMPORTS ⭐
-import { AttendanceController } from "./modules/attendance/attendance.controller";
 import { AttendanceRouter } from "./modules/attendance/attendance.router";
 
 export class App {
@@ -26,13 +23,10 @@ export class App {
   private routes() {
     const authRouter = new AuthRouter();
     const userUpdaterouter = new UserUpdateRouter();
+    const attendanceRouter = new AttendanceRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
-
-    // ⭐ ADD THESE THREE LINES ⭐
-    const attendanceController = new AttendanceController();
-    const attendanceRouter = new AttendanceRouter(attendanceController);
     this.app.use("/attendance", attendanceRouter.getRouter());
   }
 

@@ -2,17 +2,29 @@
 import { Router } from "express";
 import { AttendanceController } from "./attendance.controller";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware"; // adjust path if needed
-import { validateBody, validateQuery } from "../../middlewares/validation.middleware"; // adjust path
-import { CheckInDTO, CheckOutDTO, GetAttendanceLogDTO, GetAttendanceReportDTO } from "./dto/attendance.dto";
-import { Role } from "../../generated/prisma";
+import {
+  validateBody,
+  validateQuery,
+} from "../../middlewares/validation.middleware"; // adjust path
+import {
+  CheckInDTO,
+  CheckOutDTO,
+  GetAttendanceLogDTO,
+  GetAttendanceReportDTO,
+} from "./dto/attendance.dto";
+import { Role } from "../../generated/prisma/enums";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 export class AttendanceRouter {
-  private router = Router();
-  private jwtMiddleware = new JwtMiddleware();
+  private router: Router;
+  private jwtMiddleware: JwtMiddleware;
+  private attendanceController: AttendanceController;
 
-  constructor(private attendanceController: AttendanceController) {
+  constructor() {
+    this.router = Router();
+    this.jwtMiddleware = new JwtMiddleware();
+    this.attendanceController = new AttendanceController();
     this.initializedRoutes();
   }
 
@@ -23,7 +35,8 @@ export class AttendanceRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER]),
       validateBody(CheckInDTO),
-      (req, res, next) => this.attendanceController.createCheckIn(req, res, next)
+      (req, res, next) =>
+        this.attendanceController.createCheckIn(req, res, next)
     );
 
     // check-out (workers & drivers)
@@ -32,7 +45,8 @@ export class AttendanceRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER]),
       validateBody(CheckOutDTO),
-      (req, res, next) => this.attendanceController.createCheckOut(req, res, next)
+      (req, res, next) =>
+        this.attendanceController.createCheckOut(req, res, next)
     );
 
     // log (self or admin) — admins can view reports; /log is self-only here
