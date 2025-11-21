@@ -57,7 +57,7 @@ export class AuthService {
       "Please verify your email",
       "verify-email",
       {
-        url: `https://your-frontend.com/verify-email?token=${accessToken}`, // masukin FE URL BLOOOOK
+        verificationUrl: `${BASE_URL_FE}/verify-email?${accessToken}`, // masukin FE URL BLOOOOK
       }
     );
 
@@ -65,23 +65,23 @@ export class AuthService {
   };
 
   verifyEmail = async (userId: string) => {
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-  });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-  if (!user) throw new ApiError("User not found", 404);
-  if (user.emailVerified) return { message: "Email already verified" };
+    if (!user) throw new ApiError("User not found", 404);
+    if (user.emailVerified) return { message: "Email already verified" };
 
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      emailVerified: true,
-      verifiedAt: new Date(),
-    },
-  });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerified: true,
+        verifiedAt: new Date(),
+      },
+    });
 
-  return { message: "Email verified successfully" };
-};
+    return { message: "Email verified successfully" };
+  };
 
   login = async (body: LoginDTO) => {
     const user = await this.prisma.user.findFirst({
@@ -109,6 +109,8 @@ export class AuthService {
     return { ...userWithoutPassword, accessToken };
   };
 
+  socialLogin = async () => {};
+
   forgotPassword = async (body: ForgotPasswordDTO) => {
     // cek dulu usernya ada apa tidak di db berdasarkan email
     const user = await this.prisma.user.findFirst({
@@ -127,10 +129,12 @@ export class AuthService {
     // kirim email reset password + token
     await this.mailService.sendEmail(
       user.email,
-      "Forgot Password",
+      "Reset Password",
       "reset-password",
       { link: `${BASE_URL_FE}/new-password/${token}` }
     );
+
+    return { message: "Send email success!" };
   };
 
   resetPassword = async (body: ResetPasswordDTO, authUserId: string) => {
@@ -139,7 +143,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ApiError("invalid user id", 400);
+      return "Send email success!";
     }
 
     const hashedPassword = await hashPassword(body.password);
