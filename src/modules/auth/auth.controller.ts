@@ -38,6 +38,8 @@ export class AuthController {
     res.status(200).send(result);
   };
 
+  socialLogin = async () => {}
+
   forgotPassword = async (req: Request, res: Response) => {
     const result = await this.authService.forgotPassword(req.body);
     res.status(200).send(result);
