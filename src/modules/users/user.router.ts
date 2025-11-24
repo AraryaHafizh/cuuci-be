@@ -27,7 +27,7 @@ export class UserUpdateRouter {
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
       this.uploaderMiddleware
         .upload()
-        .fields([{ name: "profilePicture", maxCount: 1 }]),
+        .fields([{ name: "profilePictureUrl", maxCount: 1 }]),
       this.uploaderMiddleware.fileFilter([
         "image/jpeg",
         "image/png",

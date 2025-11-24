@@ -2,6 +2,7 @@ import { ApiError } from "../../utils/api-error";
 import { hashPassword } from "../../utils/password";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { UserUpdatePasswordDTO } from "./dto/user-update-password.dto";
 import { UserUpdateDTO } from "./dto/user-update.dto";
 
 export class UserUpdateService {
@@ -16,7 +17,7 @@ export class UserUpdateService {
   userUpdate = async (
     id: string,
     body: UserUpdateDTO,
-    profilePicture?: Express.Multer.File
+    profilePictureUrl?: Express.Multer.File
   ) => {
     const user = await this.prisma.user.findFirst({
       where: { id },
@@ -24,24 +25,24 @@ export class UserUpdateService {
 
     if (!user) throw new ApiError("user not found", 404);
 
-    let imageUrl = user.profilePicture;
+    let imageUrl = user.profilePictureUrl;
 
-    if (profilePicture) {
-      if (user.profilePicture)
-        await this.cloudinaryService.remove(user.profilePicture);
+    if (profilePictureUrl) {
+      if (user.profilePictureUrl)
+        await this.cloudinaryService.remove(user.profilePictureUrl);
       const { secure_url } = await this.cloudinaryService.upload(
-        profilePicture
+        profilePictureUrl
       );
       imageUrl = secure_url;
     }
 
     const updateData: any = {};
     if (body.name) updateData.name = body.name;
-    if (body.password) {
-      const hashedPassword = await hashPassword(body.password);
-      updateData.password = hashedPassword;
-    }
-    updateData.profilePicture = imageUrl;
+    // if (body.password) {
+    //   const hashedPassword = await hashPassword(body.password);
+    //   updateData.password = hashedPassword;
+    // }
+    updateData.profilePictureUrl = imageUrl;
 
     await this.prisma.user.update({
       where: { id },
@@ -50,4 +51,6 @@ export class UserUpdateService {
 
     return { message: "update user success" };
   };
+
+  userUpdatePassword = async (id: string, body: UserUpdatePasswordDTO) => {};
 }
