@@ -5,6 +5,7 @@ import { UploaderMiddleware } from "../../middlewares/uploader.middleware";
 import { validateBody } from "../../middlewares/validation.middleware";
 import { UserUpdateController } from "./user.controller";
 import { UserUpdateDTO } from "./dto/user-update.dto";
+import { UserUpdatePasswordDTO } from "./dto/user-update-password.dto";
 
 export class UserUpdateRouter {
   private router: Router;
@@ -35,6 +36,14 @@ export class UserUpdateRouter {
       ]),
       validateBody(UserUpdateDTO),
       this.userUpdateController.userUpdate
+    );
+
+    this.router.patch(
+      "/update-password/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["CUSTOMER"]),
+      validateBody(UserUpdatePasswordDTO),
+      this.userUpdateController.userUpdatePassword
     );
   };
   getRouter = () => {
