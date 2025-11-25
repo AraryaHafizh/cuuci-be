@@ -4,7 +4,7 @@ import cors from "cors";
 import { PORT } from "./config/env";
 import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
-import { AttendanceRouter } from "./modules/attendance/attendance.router";
+import { AttendanceRouter } from "./modules/attendances/attendance.router";
 
 export class App {
   app: Express;
