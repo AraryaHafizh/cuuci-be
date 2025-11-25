@@ -38,10 +38,6 @@ export class UserUpdateService {
 
     const updateData: any = {};
     if (body.name) updateData.name = body.name;
-    // if (body.password) {
-    //   const hashedPassword = await hashPassword(body.password);
-    //   updateData.password = hashedPassword;
-    // }
     updateData.profilePictureUrl = imageUrl;
 
     await this.prisma.user.update({
@@ -52,5 +48,24 @@ export class UserUpdateService {
     return { message: "update user success" };
   };
 
-  userUpdatePassword = async (id: string, body: UserUpdatePasswordDTO) => {};
+  userUpdatePassword = async (id: string, body: UserUpdatePasswordDTO) => {
+    const user = await this.prisma.user.findFirst({
+      where: { id },
+    });
+
+    if (!user) throw new ApiError("user not found", 404);
+
+    const updateData: any = {}
+    if (body.password) {
+      const hashedPassword = await hashPassword(body.password);
+      updateData.password = hashedPassword;
+    }
+    
+    await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return { message: "update user success" };
+  };
 }
