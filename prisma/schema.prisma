@@ -80,16 +80,6 @@ model Outlet {
   @@map("outlets")
 }
 
-model LaundryItem {
-  id         String      @id @default(cuid())
-  name       String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  orderItems OrderItem[]
-
-  @@map("laundry_items")
-}
-
 model Order {
   id             String          @id @default(cuid())
   customer       User            @relation("CustomerOrders", fields: [customerId], references: [id])
@@ -116,6 +106,16 @@ model Order {
   deliveryOrders DeliveryOrder[]
 
   @@map("orders")
+}
+
+model LaundryItem {
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+
+  @@map("laundry_items")
 }
 
 model OrderItem {
