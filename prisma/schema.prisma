@@ -73,7 +73,7 @@ model Outlet {
   updatedAt    DateTime      @updatedAt
   orders       Order[]
   workerShifts WorkerShift[]
-  userId       String?
+  admin        String?
   users        User[]
   drivers      Driver[]
 
@@ -135,9 +135,9 @@ model PickupOrder {
   id           String      @id @default(cuid())
   pickupNumber String      @unique
   status       OrderStatus
-  driverId     String?     
+  driverId     String?
   driver       Driver?     @relation(fields: [driverId], references: [id])
-  orderId      String?     
+  orderId      String?
   order        Order?      @relation(fields: [orderId], references: [id])
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -149,9 +149,9 @@ model DeliveryOrder {
   id             String      @id @default(cuid())
   deliveryNumber String      @unique
   status         OrderStatus
-  driverId       String?     
+  driverId       String?
   driver         Driver?     @relation(fields: [driverId], references: [id])
-  orderId        String?     
+  orderId        String?
   order          Order?      @relation(fields: [orderId], references: [id])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
