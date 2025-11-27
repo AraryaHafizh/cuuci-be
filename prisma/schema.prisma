@@ -81,30 +81,45 @@ model Outlet {
 }
 
 model Order {
-  id             String          @id @default(cuid())
-  customer       User            @relation("CustomerOrders", fields: [customerId], references: [id])
-  customerId     String
-  outlet         Outlet          @relation(fields: [outletId], references: [id])
-  outletId       String
-  driver         User?           @relation("DriverOrders", fields: [driverId], references: [id])
-  driverId       String?
-  address        Address         @relation(fields: [addressId], references: [id])
-  addressId      String
-  status         OrderStatus
-  totalPrice     Int
-  totalWeight    Int
-  distance       Int
-  orderItems     OrderItem[]
-  payment        Payment?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  pickupTime     DateTime?
-  deliveryTime   DateTime?
-  invoiceUrl     String
-  pickupOrders   PickupOrder[]
-  deliveryOrders DeliveryOrder[]
+  id                 String             @id @default(cuid())
+  customer           User               @relation("CustomerOrders", fields: [customerId], references: [id])
+  customerId         String
+  outlet             Outlet             @relation(fields: [outletId], references: [id])
+  outletId           String
+  driver             User?              @relation("DriverOrders", fields: [driverId], references: [id])
+  driverId           String?
+  address            Address            @relation(fields: [addressId], references: [id])
+  addressId          String
+  status             OrderStatus
+  totalPrice         Int
+  totalWeight        Int
+  distance           Int
+  orderItems         OrderItem[]
+  payment            Payment?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  pickupTime         DateTime?
+  deliveryTime       DateTime?
+  invoiceUrl         String
+  pickupOrders       PickupOrder[]
+  deliveryOrders     DeliveryOrder[]
+  orderWorkProcesses OrderWorkProcess[]
 
   @@map("orders")
+}
+
+model OrderWorkProcess {
+  id          String                 @id @default(cuid())
+  workerId    String
+  worker      Worker                 @relation(fields: [workerId], references: [id])
+  orderId     String
+  order       Order                  @relation(fields: [orderId], references: [id])
+  station     Station
+  status      OrderWorkProcessStatus @default(PENDING)
+  notes       String?
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 }
 
 model Note {
@@ -195,17 +210,18 @@ model Attendance {
 }
 
 model Worker {
-  id        String    @id @default(cuid())
-  worker    User      @relation(fields: [workerId], references: [id])
-  workerId  String
-  outlet    Outlet    @relation(fields: [outletId], references: [id])
-  outletId  String
-  station   Station
-  startTime DateTime
-  endTime   DateTime?
-  shift     Shift
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                 String             @id @default(cuid())
+  worker             User               @relation(fields: [workerId], references: [id])
+  workerId           String
+  outlet             Outlet             @relation(fields: [outletId], references: [id])
+  outletId           String
+  station            Station
+  startTime          DateTime
+  endTime            DateTime?
+  shift              Shift
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  orderWorkProcesses OrderWorkProcess[]
 
   @@map("workers")
 }
@@ -331,6 +347,13 @@ enum Station {
   WASHING
   IRONING
   PACKING
+}
+
+enum OrderWorkProcessStatus {
+  PENDING
+  IN_PROCESS
+  COMPLETED
+  FAILED
 }
 
 enum OrderStatus {

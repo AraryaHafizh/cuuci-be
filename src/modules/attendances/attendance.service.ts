@@ -115,7 +115,7 @@ export class AttendanceService {
         OR: [
           { outletId: dto.outletId },
           {
-            workerShifts: {
+            workers: {
               some: { outletId: dto.outletId },
             },
           },
