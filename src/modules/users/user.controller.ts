@@ -20,4 +20,14 @@ export class UserUpdateController {
     );
     res.status(200).send(result);
   };
+
+  userUpdatePassword = async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const body = req.body;
+    const result = await this.userUpdateservice.userUpdatePassword(
+      id,
+      body
+    );
+    res.status(200).send(result);
+  };
 }

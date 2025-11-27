@@ -4,9 +4,9 @@ import cors from "cors";
 import { PORT } from "./config/env";
 import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
-import { AttendanceRouter } from "./modules/attendance/attendance.router";
 import { DriverRouter } from "./modules/driver/driver.router";
-import { WorkerRouter } from "./modules/worker/worker.router"; // ✅ ADDED
+import { WorkerRouter } from "./modules/worker/worker.router";
+import { AttendanceRouter } from "./modules/attendances/attendance.router";
 
 export class App {
   app: Express;

@@ -25,7 +25,7 @@ model User {
   outletAdmin       Outlet?            @relation(fields: [outletId], references: [id])
   outletId          String?
   // Worker relations
-  workerShifts      WorkerShift[]
+  workers           Worker[]
   // Customer orders
   orders            Order[]            @relation("CustomerOrders")
   // Driver relations
@@ -64,20 +64,70 @@ model Address {
 }
 
 model Outlet {
-  id           String        @id @default(cuid())
-  name         String
-  address      String
-  latitude     String
-  longitude    String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  orders       Order[]
-  workerShifts WorkerShift[]
-  userId       String?
-  users        User[]
-  drivers      Driver[]
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  latitude  String
+  longitude String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  workers   Worker[]
+  admin     String?
+  users     User[]
+  drivers   Driver[]
 
   @@map("outlets")
+}
+
+model Order {
+  id                 String             @id @default(cuid())
+  customer           User               @relation("CustomerOrders", fields: [customerId], references: [id])
+  customerId         String
+  outlet             Outlet             @relation(fields: [outletId], references: [id])
+  outletId           String
+  driver             User?              @relation("DriverOrders", fields: [driverId], references: [id])
+  driverId           String?
+  address            Address            @relation(fields: [addressId], references: [id])
+  addressId          String
+  status             OrderStatus
+  totalPrice         Int
+  totalWeight        Int
+  distance           Int
+  orderItems         OrderItem[]
+  payment            Payment?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  pickupTime         DateTime?
+  deliveryTime       DateTime?
+  invoiceUrl         String
+  pickupOrders       PickupOrder[]
+  deliveryOrders     DeliveryOrder[]
+  orderWorkProcesses OrderWorkProcess[]
+
+  @@map("orders")
+}
+
+model OrderWorkProcess {
+  id          String                 @id @default(cuid())
+  workerId    String
+  worker      Worker                 @relation(fields: [workerId], references: [id])
+  orderId     String
+  order       Order                  @relation(fields: [orderId], references: [id])
+  station     Station
+  status      OrderWorkProcessStatus @default(PENDING)
+  notes       String?
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+model Note {
+  id   String  @id @default(cuid())
+  type Notes
+  body String?
+
+  @@map("notes")
 }
 
 model LaundryItem {
@@ -88,34 +138,6 @@ model LaundryItem {
   orderItems OrderItem[]
 
   @@map("laundry_items")
-}
-
-model Order {
-  id             String          @id @default(cuid())
-  customer       User            @relation("CustomerOrders", fields: [customerId], references: [id])
-  customerId     String
-  outlet         Outlet          @relation(fields: [outletId], references: [id])
-  outletId       String
-  driver         User?           @relation("DriverOrders", fields: [driverId], references: [id])
-  driverId       String?
-  address        Address         @relation(fields: [addressId], references: [id])
-  addressId      String
-  status         OrderStatus
-  totalPrice     Int
-  totalWeight    Int
-  distance       Int
-  orderItems     OrderItem[]
-  payment        Payment?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  pickupTime     DateTime?
-  deliveryTime   DateTime?
-  notes          String?
-  invoiceUrl     String
-  pickupOrders   PickupOrder[]
-  deliveryOrders DeliveryOrder[]
-
-  @@map("orders")
 }
 
 model OrderItem {
@@ -135,9 +157,9 @@ model PickupOrder {
   id           String      @id @default(cuid())
   pickupNumber String      @unique
   status       OrderStatus
-  driverId     String?     
+  driverId     String?
   driver       Driver?     @relation(fields: [driverId], references: [id])
-  orderId      String?     
+  orderId      String?
   order        Order?      @relation(fields: [orderId], references: [id])
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -149,9 +171,9 @@ model DeliveryOrder {
   id             String      @id @default(cuid())
   deliveryNumber String      @unique
   status         OrderStatus
-  driverId       String?     
+  driverId       String?
   driver         Driver?     @relation(fields: [driverId], references: [id])
-  orderId        String?     
+  orderId        String?
   order          Order?      @relation(fields: [orderId], references: [id])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -187,34 +209,38 @@ model Attendance {
   @@map("attendances")
 }
 
-model WorkerShift {
-  id        String    @id @default(cuid())
-  worker    User      @relation(fields: [workerId], references: [id])
-  workerId  String
-  outlet    Outlet    @relation(fields: [outletId], references: [id])
-  outletId  String
-  station   Station
-  startTime DateTime
-  endTime   DateTime?
-  shift     Shift
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+model Worker {
+  id                 String             @id @default(cuid())
+  worker             User               @relation(fields: [workerId], references: [id])
+  workerId           String
+  outlet             Outlet             @relation(fields: [outletId], references: [id])
+  outletId           String
+  station            Station
+  startTime          DateTime
+  endTime            DateTime?
+  shift              Shift
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  orderWorkProcesses OrderWorkProcess[]
 
-  @@map("worker_shifts")
+  @@map("workers")
 }
 
 model Driver {
-  id             String          @id @default(cuid())
-  driver         User            @relation(fields: [driverId], references: [id])
-  driverId       String
-  outlet         Outlet          @relation(fields: [outletId], references: [id])
-  outletId       String
-  startTime      DateTime
-  endTime        DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  pickupOrders   PickupOrder[]
-  deliveryOrders DeliveryOrder[]
+  id                     String          @id @default(cuid())
+  driver                 User            @relation(fields: [driverId], references: [id])
+  driverId               String
+  outlet                 Outlet          @relation(fields: [outletId], references: [id])
+  outletId               String
+  pickupOrders           PickupOrder[]
+  pickupOrderId          String
+  currentPickupOrderId   String?
+  deliveryOrders         DeliveryOrder[]
+  currentDeliveryOrderId String?
+  startTime              DateTime
+  endTime                DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 
   @@map("drivers")
 }
@@ -311,10 +337,23 @@ enum Role {
   SUPER_ADMIN
 }
 
+enum Notes {
+  COMPLAINT
+  BYPASS
+  INSTRUCTION
+}
+
 enum Station {
   WASHING
   IRONING
   PACKING
+}
+
+enum OrderWorkProcessStatus {
+  PENDING
+  IN_PROCESS
+  COMPLETED
+  FAILED
 }
 
 enum OrderStatus {
