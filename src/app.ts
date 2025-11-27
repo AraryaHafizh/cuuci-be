@@ -5,6 +5,8 @@ import { PORT } from "./config/env";
 import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
 import { AttendanceRouter } from "./modules/attendance/attendance.router";
+import { DriverRouter } from "./modules/driver/driver.router";
+import { WorkerRouter } from "./modules/worker/worker.router"; // ✅ ADDED
 
 export class App {
   app: Express;
@@ -24,10 +26,14 @@ export class App {
     const authRouter = new AuthRouter();
     const userUpdaterouter = new UserUpdateRouter();
     const attendanceRouter = new AttendanceRouter();
+    const driverRouter = new DriverRouter();
+    const workerRouter = new WorkerRouter(); // ✅ ADDED
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendance", attendanceRouter.getRouter());
+    this.app.use("/driver", driverRouter.getRouter());
+    this.app.use("/worker", workerRouter.getRouter()); // ✅ ADDED
   }
 
   private handleError() {

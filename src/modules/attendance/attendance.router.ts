@@ -2,13 +2,8 @@
 import { Router } from "express";
 import { AttendanceController } from "./attendance.controller";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware"; // adjust path if needed
+import { validateQuery } from "../../middlewares/validation.middleware"; // adjust path
 import {
-  validateBody,
-  validateQuery,
-} from "../../middlewares/validation.middleware"; // adjust path
-import {
-  CheckInDTO,
-  CheckOutDTO,
   GetAttendanceLogDTO,
   GetAttendanceReportDTO,
 } from "./dto/attendance.dto";
@@ -34,7 +29,6 @@ export class AttendanceRouter {
       "/check-in",
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER]),
-      validateBody(CheckInDTO),
       (req, res, next) =>
         this.attendanceController.createCheckIn(req, res, next)
     );
@@ -44,7 +38,6 @@ export class AttendanceRouter {
       "/check-out",
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER]),
-      validateBody(CheckOutDTO),
       (req, res, next) =>
         this.attendanceController.createCheckOut(req, res, next)
     );
