@@ -1,9 +1,8 @@
-import { OrderStatus } from "../../../generated/prisma/enums";
 import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DriverPickupDTO } from "../dto/driver-pickup.dto";
-import { PickupRequestDTO } from "../dto/pickup-request.dto";
+import { PickupOrderDTO } from "../dto/pickup-order.dto";
 
 export class PickupService {
   private prisma: PrismaService;
@@ -12,52 +11,22 @@ export class PickupService {
     this.prisma = new PrismaService();
   }
 
-  createPickupRequest = async (authUserId: string, body: PickupRequestDTO) => {
+  createPickupOrder = async (authUserId: string, body: PickupOrderDTO) => {
     const user = await this.prisma.user.findFirst({
       where: { id: authUserId },
       include: { addresses: true },
     });
-
     if (!user) {
       return new ApiError("user not found", 404);
     }
-
     if (!user.addresses || user.addresses.length === 0) {
-      throw new ApiError("User has no addresses", 400);
+      return new ApiError("User has no addresses", 400);
     }
-    const selectedAddress = user.addresses.find((a) => a.id === body.address);
-    if (!selectedAddress) throw new ApiError("Address not found", 404);
-
-    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); //2 jam
-    const pickupNumber = randomCodeGenerator();
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. create data pickupOrder
-      const pickupOrder = await tx.pickupOrder.create({
-        data: {
-          id: authUserId,
-          pickupNumber,
-          status: "WAITING_FOR_PICKUP",
-          //   expiresAt,
-        },
-      });
-
-      // 2. create data order detail
-      //   const orderDetails = payload.map((item) => {
-      //     const ticket = tickets.find((ticket) => ticket.id === item.ticketId)!;
-
-      //     return {
-      //       pickupOrderId: pickupOrder.id,
-      //       apalagi??
-      //     };
-      //   });
-
-      //   await tx.transactionDetail.createMany({
-      //     data: transactionDetails,
-      //   });
-
-      //   return transaction;
-    });
+    const selectedAddress = user.addresses.find((a) => a.id === body.addressId);
+    if (!selectedAddress) return new ApiError("Address not found", 404);
+    if (selectedAddress.latitude === null || selectedAddress.longitude === null) {
+      return new ApiError("Address does not have valid coordinates", 400);
+    }
   };
 
   driverTakePickup = async (driverId: string, body: DriverPickupDTO) => {
