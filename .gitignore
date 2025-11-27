@@ -1,6 +1,5 @@
 node_modules
 .env
 docker
-/prisma/migrations
 /src/generated/prisma
 dist
