@@ -27,6 +27,8 @@ export class PickupService {
     if (selectedAddress.latitude === null || selectedAddress.longitude === null) {
       return new ApiError("Address does not have valid coordinates", 400);
     }
+
+    
   };
 
   driverTakePickup = async (driverId: string, body: DriverPickupDTO) => {
