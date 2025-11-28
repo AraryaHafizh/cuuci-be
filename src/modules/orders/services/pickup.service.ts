@@ -1,3 +1,5 @@
+import { Outlet } from "../../../generated/prisma/client";
+import { getDistance } from "../../../script/getHaversineDistance";
 import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -28,6 +30,57 @@ export class PickupService {
       return new ApiError("Address does not have valid coordinates", 400);
     }
 
+    let outlets = await this.prisma.outlet.findMany()
+
+    if (!outlets) {
+      return new ApiError("No outlets available", 400)
+    }
+    let shortestDistance: number = Infinity
+    let nearestOutlet: Outlet | null = null
+    
+    for (const outlet of outlets) {
+  if (!outlet.latitude || !outlet.longitude) continue;
+
+  const distance: number = Number(getDistance(
+    Number(selectedAddress.latitude),
+    Number(selectedAddress.longitude),
+    Number(outlet.latitude),
+    Number(outlet.longitude)
+  ))
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        nearestOutlet = outlet
+      }
+    }
+    if (!nearestOutlet) return new ApiError("No valid outlet found", 400)
+    
+    const pickupNumber = randomCodeGenerator()
+
+    // const result = await this.prisma.$transaction(async (tx) => {
+    //   const order = await tx.order.create({
+    //   data: {
+    //     customerId: authUserId,
+    //     addressId: selectedAddress.id,
+    //     outletId: nearestOutlet.id,
+    //     pickupTime: body.pickupTime,
+    //     status: "WAITING_FOR_PICKUP"
+    //   }
+    // })
+    // await tx.pickupOrder.create({
+    //   data: {
+    //     costumerId: authUserId,
+    //     addressId: selectedAddress.id,
+    //     outletId: nearestOutlet.id,
+    //     pickupTime: body.pickupTime,
+    //     pickupNumber,
+    //     status: "WAITING_FOR_PICKUP"
+    //   }
+    // })
+    // await tx.driverNotification.create({
+    //   data: {
+    //   }
+    // })
+    // })
     
   };
 
