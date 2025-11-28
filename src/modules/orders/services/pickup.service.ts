@@ -54,66 +54,32 @@ export class PickupService {
     }
     if (!nearestOutlet) return new ApiError("No valid outlet found", 400)
     
-    const pickupNumber = randomCodeGenerator()
+    const pickupNumber = randomCodeGenerator(12)
 
-    // const result = await this.prisma.$transaction(async (tx) => {
-    //   const order = await tx.order.create({
-    //   data: {
-    //     customerId: authUserId,
-    //     addressId: selectedAddress.id,
-    //     outletId: nearestOutlet.id,
-    //     pickupTime: body.pickupTime,
-    //     status: "WAITING_FOR_PICKUP"
-    //   }
-    // })
-    // await tx.pickupOrder.create({
-    //   data: {
-    //     costumerId: authUserId,
-    //     addressId: selectedAddress.id,
-    //     outletId: nearestOutlet.id,
-    //     pickupTime: body.pickupTime,
-    //     pickupNumber,
-    //     status: "WAITING_FOR_PICKUP"
-    //   }
-    // })
+    const result = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+      data: {
+        customerId: authUserId,
+        addressId: selectedAddress.id,
+        outletId: nearestOutlet.id,
+        pickupTime: body.pickupTime,
+        status: "WAITING_FOR_PICKUP"
+      }
+    })
+    await tx.pickupOrder.create({
+      data: {
+        customerId: authUserId,
+        addressId: selectedAddress.id,
+        outletId: nearestOutlet.id,
+        pickupNumber,
+        status: "WAITING_FOR_PICKUP"
+      }
+    })
     // await tx.driverNotification.create({
     //   data: {
     //   }
     // })
-    // })
+    })
     
   };
-
-  driverTakePickup = async (driverId: string, body: DriverPickupDTO) => {
-    const driver = await this.prisma.driver.findFirst({
-      where: { id: driverId },
-    });
-    const pickupOrder = await this.prisma.pickupOrder.findFirst({
-      where: { id: body.pickupOrderId, status: "WAITING_FOR_PICKUP"},
-    });
-
-    if (!driver) throw new ApiError("driver not found", 404);
-
-    if (driver.currentPickupOrderId) {
-      throw new ApiError("Driver is already handling another pickup", 400);
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      const driverUpdate = await tx.driver.update({
-        where: { id: driverId },
-        data: { currentPickupOrderId: body.pickupOrderId },
-      });
-
-      const statusChange = await tx.pickupOrder.update({
-        where: { id: body.pickupOrderId },
-        data: { status: "LAUNDRY_ON_THE_WAY" },
-      });
-    });
-
-    return { message: "Pickup assigned to driver" };
-  };
-
-  driverCompletePickup = async () => {};
-
-  adminChangeStatus = async () => {};
 }

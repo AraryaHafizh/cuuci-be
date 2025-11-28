@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "orders" ALTER COLUMN "totalPrice" SET DEFAULT 0,
+ALTER COLUMN "totalWeight" SET DEFAULT 0,
+ALTER COLUMN "distance" SET DEFAULT 0,
+ALTER COLUMN "invoiceUrl" DROP NOT NULL;

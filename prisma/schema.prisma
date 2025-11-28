@@ -94,16 +94,16 @@ model Order {
   address            Address            @relation(fields: [addressId], references: [id])
   addressId          String
   status             OrderStatus
-  totalPrice         Int
-  totalWeight        Int
-  distance           Int
+  totalPrice         Int                @default(0)
+  totalWeight        Int                @default(0)
+  distance           Int                @default(0)
   orderItems         OrderItem[]
   payment            Payment?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   pickupTime         DateTime?
   deliveryTime       DateTime?
-  invoiceUrl         String
+  invoiceUrl         String?
   pickupOrders       PickupOrder[]
   deliveryOrders     DeliveryOrder[]
   orderWorkProcesses OrderWorkProcess[]
