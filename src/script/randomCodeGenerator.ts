@@ -5,4 +5,8 @@ export function randomCodeGenerator(length = 6) {
   return Array.from(crypto.randomFillSync(new Uint8Array(length)))
     .map((x) => chars[x % chars.length])
     .join("");
+    
 }
+
+console.log(randomCodeGenerator(12));
+
