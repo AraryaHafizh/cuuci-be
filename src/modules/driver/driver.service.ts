@@ -246,8 +246,8 @@ export class DriverService {
         },
       });
 
-      // 🔥 NEW: Notify all WASHING workers at this outlet
-      const washingWorkers = await tx.workerShift.findMany({
+     
+      const washingWorkers = await tx.worker.findMany({
         where: {
           outletId: driver.outletId,
           station: "WASHING",

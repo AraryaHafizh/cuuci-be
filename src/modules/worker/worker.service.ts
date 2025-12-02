@@ -7,6 +7,7 @@ import {
   OrderStatus,
   Shift,
   PaymentStatus,
+  OrderWorkProcessStatus,
 } from "../../generated/prisma/enums";
 import { ProcessOrderItemDTO } from "./dto/worker.dto";
 
@@ -28,31 +29,19 @@ export class WorkerService {
     return worker;
   }
 
-  /**
-   * A worker is considered BUSY if:
-   * - they already picked up a job (items matched & processOrder succeeded),
-   * - we have created a WorkerShift row for them,
-   * - and that shift has no endTime yet (still active).
-   *
-   * We ONLY create such a WorkerShift when the order’s status is one of:
-   * WASHING, IRONING, PACKING. So “active shift” == “active job in a station”.
-   */
-  private async isWorkerBusy(workerId: string) {
-    const activeShift = await this.prisma.workerShift.findFirst({
+ 
+  private async isWorkerBusy(workerUserId: string) {
+    const activeShift = await this.prisma.worker.findFirst({
       where: {
-        workerId,
-        endTime: null, // active job in some station
+        workerId: workerUserId, 
+        endTime: null,
       },
     });
 
     return !!activeShift;
   }
 
-  /**
-   * Map order status → station.
-   * This guarantees we only treat WASHING / IRONING / PACKING
-   * as worker stations.
-   */
+ 
   private getStationFromStatus(status: OrderStatus): Station {
     if (status === OrderStatus.WASHING) return Station.WASHING;
     if (status === OrderStatus.IRONING) return Station.IRONING;
@@ -60,9 +49,7 @@ export class WorkerService {
     throw new ApiError("Order is not in a worker station", 400);
   }
 
-  /**
-   * Decide the next order status after a station is completed.
-   */
+
   private getNextStatusForStation(
     currentStation: Station,
     paymentStatus?: PaymentStatus | null
@@ -74,7 +61,7 @@ export class WorkerService {
       return OrderStatus.PACKING;
     }
 
-    // PACKING → depends on payment
+  
     if (!paymentStatus || paymentStatus !== PaymentStatus.SUCCESS) {
       return OrderStatus.WAITING_FOR_PAYMENT;
     }
@@ -86,7 +73,7 @@ export class WorkerService {
     station: Station,
     description: string
   ) {
-    // Simple implementation: notify all workers in the outlet.
+
     const workers = await this.prisma.user.findMany({
       where: {
         role: Role.WORKER,
@@ -112,10 +99,7 @@ export class WorkerService {
     });
   }
 
-  // ======================================================
-  // ORDER LIST (AVAILABLE JOBS PER STATION)
-  // ======================================================
-  // GET /worker/orders?station=WASHING|IRONING|PACKING
+
   getOrdersForStation = async (
     userId: string,
     role: Role,
@@ -145,25 +129,21 @@ export class WorkerService {
     return orders;
   };
 
-  // ======================================================
-  // PROCESS ORDER (INPUT ITEM LIST) + MARK WORKER BUSY
-  // ======================================================
-  // POST /worker/orders/:orderId/process
   processOrder = async (
     userId: string,
     role: Role,
     orderId: string,
     items: ProcessOrderItemDTO[]
   ) => {
-    const worker = await this.assertWorker(userId, role);
+    const workerUser = await this.assertWorker(userId, role);
 
-    // If worker already has an active job (in ANY station),
-    // they cannot start another one.
-    const isBusy = await this.isWorkerBusy(worker.id);
+  
+    const isBusy = await this.isWorkerBusy(workerUser.id);
     if (isBusy) {
       throw new ApiError("Worker is currently busy on another job", 400);
     }
 
+   
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -173,10 +153,30 @@ export class WorkerService {
 
     if (!order) throw new ApiError("Order not found", 404);
 
-    // This will throw if order.status is NOT WASHING / IRONING / PACKING.
     const currentStation = this.getStationFromStatus(order.status);
 
-    // Compare items from worker input with items in DB
+   
+    const existingProcess = await this.prisma.orderWorkProcess.findFirst({
+      where: {
+        orderId: order.id,
+        station: currentStation,
+        status: {
+          in: [
+            OrderWorkProcessStatus.PENDING,
+            OrderWorkProcessStatus.IN_PROCESS,
+          ],
+        },
+      },
+    });
+
+    if (existingProcess) {
+      throw new ApiError(
+        "This job at this station is already being processed by another worker",
+        400
+      );
+    }
+
+  
     const dbItems = order.orderItems.map((i) => ({
       id: i.laundryItemId,
       qty: i.quantity,
@@ -195,8 +195,7 @@ export class WorkerService {
       });
 
     if (mismatch) {
-      // ❌ Do NOT mark worker busy, do NOT change status
-      // Worker is still free, and must request bypass if they want to continue.
+      
       return {
         ok: false,
         needBypass: true,
@@ -205,20 +204,29 @@ export class WorkerService {
       };
     }
 
-    // ✅ Items match:
-    // This is the moment backend knows:
-    // - worker has picked up a job,
-    // - submitted the re-input correctly,
-    // - order is in a worker station status.
-    // We now mark them as BUSY using WorkerShift (endTime still null).
-    const shift = await this.prisma.workerShift.create({
-      data: {
-        workerId: worker.id,
-        outletId: order.outletId,
-        station: currentStation,
-        startTime: new Date(),
-        shift: Shift.MORNING, // adjust if you want dynamic shift
-      },
+   
+    const result = await this.prisma.$transaction(async (tx) => {
+      
+      const shift = await tx.worker.create({
+        data: {
+          workerId: workerUser.id, 
+          outletId: order.outletId,
+          station: currentStation,
+          startTime: new Date(),
+          shift: Shift.MORNING, 
+        },
+      });
+
+      const workProcess = await tx.orderWorkProcess.create({
+        data: {
+          workerId: shift.id, 
+          orderId: order.id,
+          station: currentStation,
+          status: OrderWorkProcessStatus.IN_PROCESS,
+        },
+      });
+
+      return { shift, workProcess };
     });
 
     return {
@@ -226,14 +234,12 @@ export class WorkerService {
       needBypass: false,
       message: "Items verified. Worker is now processing this order.",
       station: currentStation,
-      shiftId: shift.id,
+      shiftId: result.shift.id,
+      workProcessId: result.workProcess.id,
     };
   };
 
-  // ======================================================
-  // REQUEST BYPASS
-  // ======================================================
-  // POST /worker/orders/:orderId/request-bypass
+
   requestBypass = async (
     userId: string,
     role: Role,
@@ -262,7 +268,6 @@ export class WorkerService {
       },
     });
 
-    // Notify outlet admins via AdminNotification
     await this.prisma.adminNotification.create({
       data: {
         outletId: order.outletId,
@@ -273,21 +278,18 @@ export class WorkerService {
     return { message: "Bypass request sent to admin" };
   };
 
-  // ======================================================
-  // COMPLETE STATION (MOVE TO NEXT STATION OR PAYMENT FLOW)
-  // ======================================================
-  // POST /worker/orders/:orderId/complete
+
   completeOrderStation = async (
     userId: string,
     role: Role,
     orderId: string
   ) => {
-    const worker = await this.assertWorker(userId, role);
+    const workerUser = await this.assertWorker(userId, role);
 
-    // Active shift = worker is currently busy on some station.
-    const activeShift = await this.prisma.workerShift.findFirst({
+    // Active shift = worker busy at some station
+    const activeShift = await this.prisma.worker.findFirst({
       where: {
-        workerId: worker.id,
+        workerId: workerUser.id,
         endTime: null,
       },
     });
@@ -303,10 +305,8 @@ export class WorkerService {
 
     if (!order) throw new ApiError("Order not found", 404);
 
-    // Ensure order is still in a valid worker station status.
     const currentStation = this.getStationFromStatus(order.status);
 
-    // Ensure the station of active job matches order’s current station
     if (currentStation !== activeShift.station) {
       throw new ApiError(
         "Order station and worker active station do not match",
@@ -321,11 +321,11 @@ export class WorkerService {
     );
 
     await this.prisma.$transaction(async (tx) => {
+      // 1) move order status
       await tx.order.update({
         where: { id: order.id },
         data: {
           status: nextStatus,
-          // If packing → READY_FOR_DELIVERY, we can set deliveryTime
           ...(currentStation === Station.PACKING &&
           nextStatus === OrderStatus.READY_FOR_DELIVERY
             ? { deliveryTime: new Date() }
@@ -333,16 +333,30 @@ export class WorkerService {
         },
       });
 
-      // Mark worker FREE by closing the active shift.
-      await tx.workerShift.update({
+   
+      await tx.worker.update({
         where: { id: activeShift.id },
         data: {
           endTime: new Date(),
         },
       });
+
+      // 3) mark the work-process row as completed
+      await tx.orderWorkProcess.updateMany({
+        where: {
+          orderId: order.id,
+          station: currentStation,
+          workerId: activeShift.id,
+          status: OrderWorkProcessStatus.IN_PROCESS,
+        },
+        data: {
+          status: OrderWorkProcessStatus.COMPLETED,
+          completedAt: new Date(),
+        },
+      });
     });
 
-    // Notify workers of the *next* station (IRONING or PACKING)
+    // notify next station workers if needed
     if (nextStatus === OrderStatus.IRONING) {
       await this.notifyWorkersForStation(
         order.outletId,
@@ -370,7 +384,7 @@ export class WorkerService {
   getHistory = async (userId: string, role: Role) => {
     await this.assertWorker(userId, role);
 
-    const history = await this.prisma.workerShift.findMany({
+    const history = await this.prisma.worker.findMany({
       where: {
         workerId: userId,
       },

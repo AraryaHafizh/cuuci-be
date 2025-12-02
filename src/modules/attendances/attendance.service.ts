@@ -6,8 +6,12 @@ import { Role } from "../../generated/prisma/enums";
 
 export class AttendanceService {
   private prisma: PrismaService;
-  // typed allowed roles array to satisfy TypeScript and use generated Role
-  private allowedRolesForAttendance: Role[] = [Role.WORKER, Role.DRIVER];
+  // Now includes OUTLET_ADMIN so admins can also check-in/out and appear in reports
+  private allowedRolesForAttendance: Role[] = [
+    Role.WORKER,
+    Role.DRIVER,
+    Role.OUTLET_ADMIN,
+  ];
 
   constructor() {
     this.prisma = new PrismaService();
@@ -19,7 +23,10 @@ export class AttendanceService {
     if (!user) throw new ApiError("User not found", 404);
 
     if (!this.allowedRolesForAttendance.includes(user.role)) {
-      throw new ApiError("Only workers or drivers can check-in", 403);
+      throw new ApiError(
+        "Only workers, drivers, or outlet admins can check-in",
+        403
+      );
     }
 
     // prevent multiple open check-ins for same day (server timezone)
@@ -37,7 +44,10 @@ export class AttendanceService {
     });
 
     if (existing && !existing.checkOut) {
-      throw new ApiError("Already checked-in for today and not checked-out", 400);
+      throw new ApiError(
+        "Already checked-in for today and not checked-out",
+        400
+      );
     }
 
     const attendance = await this.prisma.attendance.create({
@@ -56,7 +66,10 @@ export class AttendanceService {
     if (!user) throw new ApiError("User not found", 404);
 
     if (!this.allowedRolesForAttendance.includes(user.role)) {
-      throw new ApiError("Only workers or drivers can check-out", 403);
+      throw new ApiError(
+        "Only workers, drivers, or outlet admins can check-out",
+        403
+      );
     }
 
     const attendance = await this.prisma.attendance.findFirst({
@@ -95,19 +108,21 @@ export class AttendanceService {
   };
 
   // GET /attendance/report?outletId=&from=&to=
-  // Now includes both workers and drivers that belong to the outlet.
+  // Now includes workers, drivers, AND outlet admins that belong to the outlet.
   getOutletAttendanceReport = async (dto: GetAttendanceReportDTO) => {
-    const from = dto.from ? new Date(dto.from) : (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 30);
-      return d;
-    })();
+    const from = dto.from
+      ? new Date(dto.from)
+      : (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - 30);
+          return d;
+        })();
     const to = dto.to ? new Date(dto.to) : new Date();
 
-    // find users (workers + drivers) for this outlet
+    // find users (workers + drivers + outlet admins) for this outlet
     // include:
-    //  - users who have user.outletId === outletId
-    //  - users who have workerShifts for that outlet (workers)
+    //  - users who have user.outletId === outletId (admins / staff)
+    //  - users who have workers for that outlet (workers)
     //  - users who are drivers in Driver table for that outlet (drivers)
     const users = await this.prisma.user.findMany({
       where: {
@@ -129,7 +144,7 @@ export class AttendanceService {
       select: { id: true, name: true, email: true },
     });
 
-    const userIds = users.map(u => u.id);
+    const userIds = users.map((u) => u.id);
     if (userIds.length === 0) {
       return { from, to, outletId: dto.outletId, report: [] };
     }
@@ -145,9 +160,18 @@ export class AttendanceService {
     });
 
     // aggregate by userId
-    const grouped: Record<string, { user: any; totalDays: number; records: any[]; totalHours: number }> = {};
+    const grouped: Record<
+      string,
+      { user: any; totalDays: number; records: any[]; totalHours: number }
+    > = {};
     for (const a of attendances) {
-      if (!grouped[a.userId]) grouped[a.userId] = { user: a.user, totalDays: 0, records: [], totalHours: 0 };
+      if (!grouped[a.userId])
+        grouped[a.userId] = {
+          user: a.user,
+          totalDays: 0,
+          records: [],
+          totalHours: 0,
+        };
       grouped[a.userId].records.push(a);
       grouped[a.userId].totalDays += 1;
       if (a.checkOut) {
@@ -156,7 +180,7 @@ export class AttendanceService {
       }
     }
 
-    const result = Object.values(grouped).map(g => ({
+    const result = Object.values(grouped).map((g) => ({
       user: { id: g.user.id, name: g.user.name, email: g.user.email },
       totalDays: g.totalDays,
       totalHours: Number(g.totalHours.toFixed(2)),
