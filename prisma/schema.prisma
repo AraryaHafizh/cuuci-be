@@ -34,6 +34,7 @@ model User {
   userTokens        UserToken[]
   attendances       Attendance[]
   userNotifications UserNotification[]
+  pickupOrders      PickupOrder[]
 
   @@map("users")
 }
@@ -48,34 +49,36 @@ model UserToken {
 }
 
 model Address {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  address   String
-  latitude  String
-  longitude String
-  isPrimary Boolean  @default(false)
-  isDeleted Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id           String        @id @default(cuid())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  address      String
+  latitude     String
+  longitude    String
+  isPrimary    Boolean       @default(false)
+  isDeleted    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  orders       Order[]
+  pickupOrders PickupOrder[]
 
   @@map("addresses")
 }
 
 model Outlet {
-  id        String   @id @default(cuid())
-  name      String
-  address   String
-  latitude  String
-  longitude String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
-  workers   Worker[]
-  admin     String?
-  users     User[]
-  drivers   Driver[]
+  id           String        @id @default(cuid())
+  name         String
+  address      String
+  latitude     String
+  longitude    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  orders       Order[]
+  workers      Worker[]
+  admin        String?
+  users        User[]
+  drivers      Driver[]
+  pickupOrders PickupOrder[]
 
   @@map("outlets")
 }
@@ -91,16 +94,16 @@ model Order {
   address            Address            @relation(fields: [addressId], references: [id])
   addressId          String
   status             OrderStatus
-  totalPrice         Int
-  totalWeight        Int
-  distance           Int
+  totalPrice         Int                @default(0)
+  totalWeight        Int                @default(0)
+  distance           Int                @default(0)
   orderItems         OrderItem[]
   payment            Payment?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   pickupTime         DateTime?
   deliveryTime       DateTime?
-  invoiceUrl         String
+  invoiceUrl         String?
   pickupOrders       PickupOrder[]
   deliveryOrders     DeliveryOrder[]
   orderWorkProcesses OrderWorkProcess[]
@@ -120,12 +123,14 @@ model OrderWorkProcess {
   completedAt DateTime?
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
+
+  @@map("order_work_processes")
 }
 
 model Note {
   id   String  @id @default(cuid())
   type Notes
-  body String?
+  body String? @db.Text
 
   @@map("notes")
 }
@@ -157,10 +162,16 @@ model PickupOrder {
   id           String      @id @default(cuid())
   pickupNumber String      @unique
   status       OrderStatus
-  driverId     String?
+  customer     User        @relation(fields: [customerId], references: [id])
+  customerId   String
+  address      Address     @relation(fields: [addressId], references: [id])
+  addressId    String
+  outlet       Outlet      @relation(fields: [outletId], references: [id])
+  outletId     String
   driver       Driver?     @relation(fields: [driverId], references: [id])
-  orderId      String?
+  driverId     String?
   order        Order?      @relation(fields: [orderId], references: [id])
+  orderId      String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
