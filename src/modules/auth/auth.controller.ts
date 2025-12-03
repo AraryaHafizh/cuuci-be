@@ -15,30 +15,21 @@ export class AuthController {
     res.status(200).send(result);
   };
 
-  verifyEmail = async (req: Request, res: Response) => {
-  const token = req.query.token as string;
-
-  if (!token) {
-    return res.status(400).send({ message: "Token is required" });
-  }
-
-  let payload;
-  try {
-    payload = verify(token, JWT_SECRET_VERIFY!) as { id: string };
-  } catch (err) {
-    return res.status(400).send({ message: "Invalid or expired token" });
-  }
-
-  const result = await this.authService.verifyEmail(payload.id);
-  return res.status(200).send(result);
-};
+  emailVerification = async (req: Request, res: Response) => {
+    const authUserId = String(res.locals.user.id);
+    const result = await this.authService.emailVerification(authUserId);
+    return res.status(200).send(result);
+  };
 
   login = async (req: Request, res: Response) => {
     const result = await this.authService.login(req.body);
     res.status(200).send(result);
   };
 
-  socialLogin = async () => {}
+  loginByGoogle = async (req: Request, res: Response) => {
+    const result = await this.authService.loginByGoogle(req.body);
+    res.status(200).send(result);
+  };
 
   forgotPassword = async (req: Request, res: Response) => {
     const result = await this.authService.forgotPassword(req.body);

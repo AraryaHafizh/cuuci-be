@@ -18,6 +18,7 @@ model User {
   emailVerified     Boolean            @default(false)
   verifiedAt        DateTime?
   profilePictureUrl String?
+  provider          Provider           @default(CREDENTIALS)
   addresses         Address[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -385,4 +386,9 @@ enum PaymentStatus {
   PENDING
   SUCCESS
   CANCELLED
+}
+
+enum Provider {
+  GOOGLE
+  CREDENTIALS
 }
