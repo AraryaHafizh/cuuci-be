@@ -8,6 +8,7 @@ import { AttendanceRouter } from "./modules/attendances/attendance.router";
 
 export class App {
   app: Express;
+  
   constructor() {
     this.app = express();
     this.configure();

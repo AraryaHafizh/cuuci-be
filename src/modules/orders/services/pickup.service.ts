@@ -26,60 +26,66 @@ export class PickupService {
     }
     const selectedAddress = user.addresses.find((a) => a.id === body.addressId);
     if (!selectedAddress) return new ApiError("Address not found", 404);
-    if (selectedAddress.latitude === null || selectedAddress.longitude === null) {
+    if (
+      selectedAddress.latitude === null ||
+      selectedAddress.longitude === null
+    ) {
       return new ApiError("Address does not have valid coordinates", 400);
     }
 
-    let outlets = await this.prisma.outlet.findMany()
+    let outlets = await this.prisma.outlet.findMany();
 
     if (!outlets) {
-      return new ApiError("No outlets available", 400)
+      return new ApiError("No outlets available", 400);
     }
-    let shortestDistance: number = Infinity
-    let nearestOutlet: Outlet | null = null
-    
-    for (const outlet of outlets) {
-  if (!outlet.latitude || !outlet.longitude) continue;
+    let shortestDistance: number = Infinity;
+    let nearestOutlet: Outlet | null = null;
 
-  const distance: number = Number(getDistance(
-    Number(selectedAddress.latitude),
-    Number(selectedAddress.longitude),
-    Number(outlet.latitude),
-    Number(outlet.longitude)
-  ))
+    for (const outlet of outlets) {
+      if (!outlet.latitude || !outlet.longitude) continue;
+
+      const distance: number = Number(
+        getDistance(
+          Number(selectedAddress.latitude),
+          Number(selectedAddress.longitude),
+          Number(outlet.latitude),
+          Number(outlet.longitude)
+        )
+      );
       if (distance < shortestDistance) {
         shortestDistance = distance;
-        nearestOutlet = outlet
+        nearestOutlet = outlet;
       }
     }
-    if (!nearestOutlet) return new ApiError("No valid outlet found", 400)
-    
-    const pickupNumber = randomCodeGenerator(12)
+    if (!nearestOutlet) return new ApiError("No valid outlet found", 400);
+
+    const pickupNumber = randomCodeGenerator(12);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
-      data: {
-        customerId: authUserId,
-        addressId: selectedAddress.id,
-        outletId: nearestOutlet.id,
-        pickupTime: body.pickupTime,
-        status: "WAITING_FOR_PICKUP"
-      }
-    })
-    await tx.pickupOrder.create({
-      data: {
-        customerId: authUserId,
-        addressId: selectedAddress.id,
-        outletId: nearestOutlet.id,
-        pickupNumber,
-        status: "WAITING_FOR_PICKUP"
-      }
-    })
-    // await tx.driverNotification.create({
-    //   data: {
-    //   }
-    // })
-    })
-    
+        data: {
+          customerId: authUserId,
+          addressId: selectedAddress.id,
+          outletId: nearestOutlet.id,
+          pickupTime: body.pickupTime,
+          status: "WAITING_FOR_PICKUP",
+        },
+      });
+      await tx.pickupOrder.create({
+        data: {
+          customerId: authUserId,
+          addressId: selectedAddress.id,
+          outletId: nearestOutlet.id,
+          pickupNumber,
+          status: "WAITING_FOR_PICKUP",
+        },
+      });
+      // await tx.driverNotification.create({
+      //   data: {
+      //   }
+      // })
+    });
+
+    return { message: "Create pickup order success!" };
   };
 }
