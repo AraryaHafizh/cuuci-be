@@ -58,7 +58,7 @@ export class AuthService {
       "Please verify your email",
       "verify-email",
       {
-        verificationUrl: `${BASE_URL_FE}/verify-email?${accessToken}`, // masukin FE URL BLOOOOK
+        verificationUrl: `${BASE_URL_FE}/verify-email/${accessToken}`, // masukin FE URL BLOOOOK
       }
     );
 
@@ -91,6 +91,10 @@ export class AuthService {
 
     if (!user) {
       throw new ApiError("Invalid credentials", 400);
+    }
+
+    if (user.emailVerified === false) {
+      throw new ApiError("Email not verified", 401);
     }
 
     const isPasswordValid = await comparePassword(
@@ -139,6 +143,7 @@ export class AuthService {
           password: "",
           profilePictureUrl: profile.picture,
           emailVerified: true,
+          provider: "GOOGLE",
         },
       });
     }
@@ -172,7 +177,7 @@ export class AuthService {
       user.email,
       "Reset Password",
       "reset-password",
-      { link: `${BASE_URL_FE}/new-password/${token}` }
+      { link: `${BASE_URL_FE}/reset-password/${token}` }
     );
 
     return { message: "Send email success!" };

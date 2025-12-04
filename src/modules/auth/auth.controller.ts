@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
-import { verify } from "jsonwebtoken";
-import { JWT_SECRET_VERIFY } from "../../config/env";
 
 export class AuthController {
   private authService: AuthService;
