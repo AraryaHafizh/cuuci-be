@@ -71,9 +71,7 @@ export class AuthService {
     });
 
     if (!user) throw new ApiError("User not found", 404);
-    if (user.emailVerified) {
-      throw new ApiError("Email already verified", 400);
-    }
+    if (user.emailVerified) throw new ApiError ("Email already verified", 400);
 
     await this.prisma.user.update({
       where: { id: authUserId },

@@ -1,3 +1,4 @@
+import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GetOrderDTO } from "../dto/get-order.dto";
 
@@ -9,17 +10,25 @@ export class OrderService {
   }
 
   getOrders = async (
-    costumerId: string,
     authUserId: string,
-    body: GetOrderDTO,
+    body: GetOrderDTO, // perlu dto kah?
+    // orderId?
+    // status?
+    // outletId?
+    // decode token kemudian di cek id nya sama apa engga
+    // bisa juga sekalian memfilter order apa yang bisa diakses berdasarkan payload token
     page = 1,
     limit = 10,
     search?: string
   ) => {
     const user = await this.prisma.user.findFirst({
-      where: { id: costumerId },
+      where: { id: authUserId },
       include: { outletAdmin: true },
     });
+
+    if (!user) {
+      throw new ApiError("User not found", 404)
+    }
   };
 
   getOrderDetails = async () => {};
@@ -32,7 +41,8 @@ export class OrderService {
 
   autoConfirmOrder = async () => {};
 
-  // maybe cron automation??
+  // maybe cron automation?? yes
+  // delete user kalo belom verify (5hari)
   // autoCancelUnpaidOrders
   // autoConfirmDeliveredOrders
 }
