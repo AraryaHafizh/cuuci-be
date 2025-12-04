@@ -17,4 +17,8 @@ export class RegisterDTO {
   @IsOptional()
   @IsEnum(Role)
   role?: Role
+
+  @IsOptional()
+  @IsString()
+  outletId?: string
 }

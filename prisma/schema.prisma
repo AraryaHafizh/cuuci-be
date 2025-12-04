@@ -74,10 +74,11 @@ model Outlet {
   longitude    String
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
   orders       Order[]
   workers      Worker[]
-  admin        String?
-  users        User[]
+  adminId      String?
+  costumers    User[]
   drivers      Driver[]
   pickupOrders PickupOrder[]
 
