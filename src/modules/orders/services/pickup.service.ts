@@ -3,7 +3,6 @@ import { getDistance } from "../../../script/getHaversineDistance";
 import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
-import { DriverPickupDTO } from "../dto/driver-pickup.dto";
 import { PickupOrderDTO } from "../dto/pickup-order.dto";
 
 export class PickupService {
@@ -19,24 +18,24 @@ export class PickupService {
       include: { addresses: true },
     });
     if (!user) {
-      return new ApiError("user not found", 404);
+      throw new ApiError("user not found", 404);
     }
     if (!user.addresses || user.addresses.length === 0) {
-      return new ApiError("User has no addresses", 400);
+      throw new ApiError("User has no addresses", 400);
     }
     const selectedAddress = user.addresses.find((a) => a.id === body.addressId);
-    if (!selectedAddress) return new ApiError("Address not found", 404);
+    if (!selectedAddress) throw new ApiError("Address not found", 404);
     if (
       selectedAddress.latitude === null ||
       selectedAddress.longitude === null
     ) {
-      return new ApiError("Address does not have valid coordinates", 400);
+      throw new ApiError("Address does not have valid coordinates", 400);
     }
 
     let outlets = await this.prisma.outlet.findMany();
 
     if (!outlets) {
-      return new ApiError("No outlets available", 400);
+      throw new ApiError("No outlets available", 400);
     }
     let shortestDistance: number = Infinity;
     let nearestOutlet: Outlet | null = null;
@@ -57,7 +56,7 @@ export class PickupService {
         nearestOutlet = outlet;
       }
     }
-    if (!nearestOutlet) return new ApiError("No valid outlet found", 400);
+    if (!nearestOutlet) throw new ApiError("No valid outlet found", 400);
 
     const pickupNumber = randomCodeGenerator(12);
 
