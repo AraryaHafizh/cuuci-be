@@ -30,7 +30,7 @@ export class AttendanceRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER,Role.OUTLET_ADMIN]),
       (req, res, next) =>
-        this.attendanceController.createCheckIn(req, res, next)
+        this.attendanceController.createCheckIn(req, res)
     );
 
    
@@ -39,14 +39,14 @@ export class AttendanceRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.WORKER, Role.DRIVER,Role.OUTLET_ADMIN]),
       (req, res, next) =>
-        this.attendanceController.createCheckOut(req, res, next)
+        this.attendanceController.createCheckOut(req, res)
     );
 
     this.router.get(
       "/log",
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       validateQuery(GetAttendanceLogDTO),
-      (req, res, next) => this.attendanceController.getLog(req, res, next)
+      (req, res, next) => this.attendanceController.getLog(req, res)
     );
 
   
@@ -55,7 +55,7 @@ export class AttendanceRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET),
       this.jwtMiddleware.verifyRole([Role.OUTLET_ADMIN, Role.SUPER_ADMIN]),
       validateQuery(GetAttendanceReportDTO),
-      (req, res, next) => this.attendanceController.getReport(req, res, next)
+      (req, res, next) => this.attendanceController.getReport(req, res)
     );
   };
 
