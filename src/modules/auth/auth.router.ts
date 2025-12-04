@@ -27,7 +27,7 @@ export class AuthRouter {
       validateBody(RegisterDTO),
       this.authController.register
     );
-    this.router.get(
+    this.router.patch(
       "/email-verification",
       this.jwtMiddleware.verifyToken(JWT_SECRET_VERIFY!),
       this.authController.emailVerification

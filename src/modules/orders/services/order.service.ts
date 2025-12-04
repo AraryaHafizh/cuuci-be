@@ -1,4 +1,3 @@
-import { Role } from "../../../generated/prisma/enums";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GetOrderDTO } from "../dto/get-order.dto";
 
