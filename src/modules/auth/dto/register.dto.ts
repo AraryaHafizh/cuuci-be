@@ -1,4 +1,10 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from "class-validator";
 import { Role } from "../../../generated/prisma/enums";
 
 export class RegisterDTO {
@@ -14,7 +20,15 @@ export class RegisterDTO {
   @IsString()
   password!: string;
 
+  @IsNotEmpty()
+  @IsString()
+  phoneNumber!: string;
+
   @IsOptional()
   @IsEnum(Role)
-  role?: Role
+  role?: Role;
+
+  @IsOptional()
+  @IsString()
+  outletId?: string;
 }
