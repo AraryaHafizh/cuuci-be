@@ -3,7 +3,6 @@ import { getDistance } from "../../../script/getHaversineDistance";
 import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
-import { DriverPickupDTO } from "../dto/driver-pickup.dto";
 import { PickupOrderDTO } from "../dto/pickup-order.dto";
 
 export class PickupService {
