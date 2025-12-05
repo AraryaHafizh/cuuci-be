@@ -4,9 +4,10 @@ import { RegisterDTO } from "./dto/register.dto";
 import { LoginDTO } from "./dto/login.dto";
 import { ForgotPasswordDTO } from "./dto/forgot-password.dto";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
-import { JWT_SECRET_RESET, JWT_SECRET_VERIFY } from "../../config/env";
+import { JWT_SECRET, JWT_SECRET_RESET, JWT_SECRET_VERIFY } from "../../config/env";
 import { ResetPasswordDTO } from "./dto/reset-password.dto";
 import { validateBody } from "../../middlewares/validation.middleware";
+import { GoogleLoginDto } from "./dto/google-login.dto";
 
 export class AuthRouter {
   private router: Router;
@@ -26,13 +27,20 @@ export class AuthRouter {
       validateBody(RegisterDTO),
       this.authController.register
     );
-    this.router.get(
-      "/verify-email",
-      this.authController.verifyEmail
+    this.router.patch(
+      "/email-verification",
+      this.jwtMiddleware.verifyToken(JWT_SECRET_VERIFY!),
+      this.authController.emailVerification
     );
     this.router.post(
       "/login",
       validateBody(LoginDTO),
+      this.authController.login
+    );
+    this.router.post(
+      "/google",
+      validateBody(GoogleLoginDto),
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.authController.login
     );
     this.router.post(

@@ -18,6 +18,7 @@ model User {
   emailVerified     Boolean            @default(false)
   verifiedAt        DateTime?
   profilePictureUrl String?
+  provider          Provider           @default(CREDENTIALS)
   addresses         Address[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -73,10 +74,11 @@ model Outlet {
   longitude    String
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
   orders       Order[]
   workers      Worker[]
-  admin        String?
-  users        User[]
+  adminId      String?
+  costumers    User[]
   drivers      Driver[]
   pickupOrders PickupOrder[]
 
@@ -285,7 +287,7 @@ model UserNotification {
 
 model AdminNotification {
   id             String        @id @default(cuid())
-  outletId       String
+  adminId        String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
@@ -297,7 +299,7 @@ model AdminNotification {
 
 model WorkerNotification {
   id             String        @id @default(cuid())
-  workerid       String
+  workerId       String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
@@ -385,4 +387,9 @@ enum PaymentStatus {
   PENDING
   SUCCESS
   CANCELLED
+}
+
+enum Provider {
+  GOOGLE
+  CREDENTIALS
 }
