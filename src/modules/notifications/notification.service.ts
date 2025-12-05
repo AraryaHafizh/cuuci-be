@@ -148,7 +148,7 @@ export class NotificationService {
       case "WORKER": {
         await this.prisma.workerNotification.create({
           data: {
-            workerid: receiverId,
+            workerId: receiverId,
             notificationId: notif.id,
           },
         });
