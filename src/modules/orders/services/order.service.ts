@@ -39,10 +39,11 @@ export class OrderService {
 
   confirmOrder = async () => {};
 
+  //====== CRON =====
+  
   autoConfirmOrder = async () => {};
+  autoDeleteUnverifiedUser = async () => {};
+  autoCancelUnpaidOrders = async () => {};
+  autoConfirmDeliveredOrders = async () => {};
 
-  // maybe cron automation?? yes
-  // delete user kalo belom verify (5hari)
-  // autoCancelUnpaidOrders
-  // autoConfirmDeliveredOrders
 }

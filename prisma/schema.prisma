@@ -299,7 +299,7 @@ model AdminNotification {
 
 model WorkerNotification {
   id             String        @id @default(cuid())
-  workerid       String
+  workerId       String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
