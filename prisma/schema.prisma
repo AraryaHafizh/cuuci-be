@@ -287,7 +287,7 @@ model UserNotification {
 
 model AdminNotification {
   id             String        @id @default(cuid())
-  outletId       String
+  adminId        String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
