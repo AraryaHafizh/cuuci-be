@@ -79,7 +79,7 @@ export class PickupService {
           status: "WAITING_FOR_PICKUP",
         },
       });
-      // await tx.driverNotification.create({
+      // await tx.driverNotification.createMany({
       //   data: {
       //   }
       // })
