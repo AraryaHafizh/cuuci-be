@@ -11,6 +11,7 @@ export class PickupController {
   createPickupOrder = async (req: Request, res: Response) => {
     const body = req.body;
     const authUserId = String(res.locals.user.id);
-    const result = await this.pickupService.createPickupOrder(authUserId, body)
+    const result = await this.pickupService.createPickupOrder(authUserId, body);
+    res.status(200).send(result)
   }
 }
