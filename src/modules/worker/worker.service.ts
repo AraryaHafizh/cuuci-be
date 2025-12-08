@@ -65,7 +65,15 @@ export class WorkerService {
   private getStationFromStatus(status: OrderStatus): Station {
     if (status === OrderStatus.WASHING) return Station.WASHING;
     if (status === OrderStatus.IRONING) return Station.IRONING;
-    if (status === OrderStatus.PACKING) return Station.PACKING;
+
+    // 🔹 CHANGED: treat WAITING_FOR_PAYMENT as still part of PACKING station
+    if (
+      status === OrderStatus.PACKING ||
+      status === OrderStatus.WAITING_FOR_PAYMENT
+    ) {
+      return Station.PACKING;
+    }
+
     throw new ApiError("Order is not in a worker station", 400);
   }
 
@@ -84,6 +92,12 @@ export class WorkerService {
       return OrderStatus.WAITING_FOR_PAYMENT;
     }
     return OrderStatus.READY_FOR_DELIVERY;
+  }
+
+  // NEW: simple helper to generate a unique delivery number
+  private generateDeliveryNumber(orderId: string): string {
+    const now = new Date();
+    return `DEL-${orderId}-${now.getTime()}`;
   }
 
   // NEW: detect current shift from time
@@ -312,7 +326,7 @@ export class WorkerService {
     };
   };
 
-   requestBypass = async (
+  requestBypass = async (
     userId: string,
     role: Role,
     orderId: string,
@@ -366,7 +380,6 @@ export class WorkerService {
 
     return { message: "Bypass request sent to admin" };
   };
-
 
   completeOrderStation = async (
     userId: string,
@@ -423,12 +436,23 @@ export class WorkerService {
         },
       });
 
-      await tx.worker.update({
-        where: { id: activeShift.id },
-        data: {
-          endTime: new Date(),
-        },
-      });
+      // 🔹 CHANGED: only end shift when:
+      //    - station is WASHING or IRONING, OR
+      //    - station is PACKING AND order becomes READY_FOR_DELIVERY
+      const shouldEndShift =
+        currentStation === Station.WASHING ||
+        currentStation === Station.IRONING ||
+        (currentStation === Station.PACKING &&
+          nextStatus === OrderStatus.READY_FOR_DELIVERY);
+
+      if (shouldEndShift) {
+        await tx.worker.update({
+          where: { id: activeShift.id },
+          data: {
+            endTime: new Date(),
+          },
+        });
+      }
 
       await tx.orderWorkProcess.updateMany({
         where: {
@@ -442,6 +466,20 @@ export class WorkerService {
           completedAt: new Date(),
         },
       });
+
+      // when PACKING done & payment already SUCCESS, create DeliveryOrder
+      if (
+        currentStation === Station.PACKING &&
+        nextStatus === OrderStatus.READY_FOR_DELIVERY
+      ) {
+        await tx.deliveryOrder.create({
+          data: {
+            deliveryNumber: this.generateDeliveryNumber(order.id),
+            status: OrderStatus.READY_FOR_DELIVERY,
+            orderId: order.id,
+          },
+        });
+      }
     });
 
     if (nextStatus === OrderStatus.IRONING) {
