@@ -123,7 +123,7 @@ export class WorkerService {
 
     await this.prisma.workerNotification.createMany({
       data: activeShifts.map((shift) => ({
-        workerid: shift.workerId,
+        workerId: shift.workerId,
         notificationId: notification.id,
       })),
     });
@@ -312,7 +312,7 @@ export class WorkerService {
     };
   };
 
-  requestBypass = async (
+   requestBypass = async (
     userId: string,
     role: Role,
     orderId: string,
@@ -340,15 +340,33 @@ export class WorkerService {
       },
     });
 
-    await this.prisma.adminNotification.create({
-      data: {
+    // 🔹 find all outlet admins for this outlet
+    const admins = await this.prisma.user.findMany({
+      where: {
+        role: Role.OUTLET_ADMIN,
         outletId: order.outletId,
-        notificationId: notification.id,
       },
+      select: { id: true },
+    });
+
+    if (!admins.length) {
+      throw new ApiError(
+        "No outlet admins found for this outlet. Cannot send bypass notification.",
+        400
+      );
+    }
+
+    // 🔹 create one AdminNotification per admin (uses adminId, not outletId)
+    await this.prisma.adminNotification.createMany({
+      data: admins.map((admin) => ({
+        adminId: admin.id,
+        notificationId: notification.id,
+      })),
     });
 
     return { message: "Bypass request sent to admin" };
   };
+
 
   completeOrderStation = async (
     userId: string,

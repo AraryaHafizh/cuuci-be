@@ -425,7 +425,7 @@ export class DriverService {
       for (const shift of washingWorkers) {
         await tx.workerNotification.create({
           data: {
-            workerid: shift.workerId,
+            workerId: shift.workerId,
             notification: {
               create: {
                 title: "Laundry Arrived",
