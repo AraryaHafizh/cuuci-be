@@ -1,4 +1,3 @@
-// src/modules/driver/driver.router.ts
 import { Router } from "express";
 import { DriverController } from "./driver.controller";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
@@ -70,6 +69,14 @@ export class DriverRouter {
       this.jwtMiddleware.verifyToken(jwtSecret),
       this.jwtMiddleware.verifyRole([Role.DRIVER]),
       this.driverController.completeDelivery
+    );
+
+    // ===== NEW: Driver History =====
+    this.router.get(
+      "/history",
+      this.jwtMiddleware.verifyToken(jwtSecret),
+      this.jwtMiddleware.verifyRole([Role.DRIVER]),
+      this.driverController.getHistory
     );
   };
 

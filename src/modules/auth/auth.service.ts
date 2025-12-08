@@ -1,3 +1,4 @@
+import axios from "axios";
 import { sign } from "jsonwebtoken";
 import {
   BASE_URL_FE,
@@ -5,15 +6,15 @@ import {
   JWT_SECRET_RESET,
   JWT_SECRET_VERIFY,
 } from "../../config/env";
+import { GoogleUserPayload } from "../../types/google-user";
 import { ApiError } from "../../utils/api-error";
 import { comparePassword, hashPassword } from "../../utils/password";
 import { MailService } from "../mail/mail.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { ForgotPasswordDTO } from "./dto/forgot-password.dto";
 import { LoginDTO } from "./dto/login.dto";
 import { RegisterDTO } from "./dto/register.dto";
 import { ResetPasswordDTO } from "./dto/reset-password.dto";
-import { PrismaService } from "../prisma/prisma.service";
-import { VerifyEmailDTO } from "./dto/verify-email.dto";
 
 export class AuthService {
   private prisma: PrismaService;
@@ -57,23 +58,23 @@ export class AuthService {
       "Please verify your email",
       "verify-email",
       {
-        verificationUrl: `${BASE_URL_FE}/verify-email?${accessToken}`, // masukin FE URL BLOOOOK
+        verificationUrl: `${BASE_URL_FE}/verify-email/${accessToken}`, // masukin FE URL BLOOOOK
       }
     );
 
     return { message: "register user success" };
   };
 
-  verifyEmail = async (userId: string) => {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+  emailVerification = async (authUserId: string) => {
+    const user = await this.prisma.user.findFirst({
+      where: { id: authUserId },
     });
 
     if (!user) throw new ApiError("User not found", 404);
     if (user.emailVerified) return { message: "Email already verified" };
 
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: authUserId },
       data: {
         emailVerified: true,
         verifiedAt: new Date(),
@@ -90,6 +91,10 @@ export class AuthService {
 
     if (!user) {
       throw new ApiError("Invalid credentials", 400);
+    }
+
+    if (user.emailVerified === false) {
+      throw new ApiError("Email not verified", 401);
     }
 
     const isPasswordValid = await comparePassword(
@@ -109,7 +114,48 @@ export class AuthService {
     return { ...userWithoutPassword, accessToken };
   };
 
-  socialLogin = async () => {};
+  getGoogleProfile = async (accessToken: string) => {
+    const { data } = await axios.get<GoogleUserPayload>(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    return data;
+  };
+
+  loginByGoogle = async (accessToken: string) => {
+    const profile = await this.getGoogleProfile(accessToken);
+
+    if (!profile.email_verified) {
+      throw new ApiError("Email is not verified by Google", 400);
+    }
+
+    let user = await this.prisma.user.findFirst({
+      where: { email: profile.email },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: profile.email,
+          name: profile.name,
+          password: "",
+          profilePictureUrl: profile.picture,
+          emailVerified: true,
+          provider: "GOOGLE",
+        },
+      });
+    }
+
+    const payload = { id: user.id, role: user.role };
+
+    const accessTokenJWT = sign(payload, JWT_SECRET!, { expiresIn: "2h" });
+
+    const { password, ...userWithoutPassword } = user;
+
+    return { ...userWithoutPassword, accessToken: accessTokenJWT };
+  };
 
   forgotPassword = async (body: ForgotPasswordDTO) => {
     // cek dulu usernya ada apa tidak di db berdasarkan email
@@ -131,7 +177,7 @@ export class AuthService {
       user.email,
       "Reset Password",
       "reset-password",
-      { link: `${BASE_URL_FE}/new-password/${token}` }
+      { link: `${BASE_URL_FE}/reset-password/${token}` }
     );
 
     return { message: "Send email success!" };

@@ -1,4 +1,3 @@
-// src/modules/driver/driver.controller.ts
 import { Request, Response } from "express";
 import { DriverService } from "./driver.service";
 
@@ -15,7 +14,15 @@ export class DriverController {
     const userId = String(authUser.id);
     const role = authUser.role;
 
-    const result = await this.driverService.getRequestsForDriver(userId, role);
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
+
+    const result = await this.driverService.getRequestsForDriver(
+      userId,
+      role,
+      page,
+      limit
+    );
     res.status(200).send(result);
   };
 
@@ -106,6 +113,19 @@ export class DriverController {
       role,
       deliveryOrderId
     );
+    res.status(200).send(result);
+  };
+
+  // NEW: GET /driver/history
+  getHistory = async (req: Request, res: Response) => {
+    const authUser = res.locals.user;
+    const userId = String(authUser.id);
+    const role = authUser.role;
+
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
+
+    const result = await this.driverService.getHistory(userId, role, page, limit);
     res.status(200).send(result);
   };
 }

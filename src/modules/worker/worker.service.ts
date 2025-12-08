@@ -1,4 +1,3 @@
-// src/modules/worker/worker.service.ts
 import { PrismaService } from "../prisma/prisma.service";
 import { ApiError } from "../../utils/api-error";
 import {
@@ -29,11 +28,33 @@ export class WorkerService {
     return worker;
   }
 
- 
+  // NEW: ensure worker has active attendance today
+  private async ensureActiveAttendance(userId: string) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const attendance = await this.prisma.attendance.findFirst({
+      where: {
+        userId,
+        checkIn: { gte: startOfDay, lte: endOfDay },
+        checkOut: null,
+      },
+    });
+
+    if (!attendance) {
+      throw new ApiError(
+        "You must check-in for today before processing orders",
+        400
+      );
+    }
+  }
+
   private async isWorkerBusy(workerUserId: string) {
     const activeShift = await this.prisma.worker.findFirst({
       where: {
-        workerId: workerUserId, 
+        workerId: workerUserId,
         endTime: null,
       },
     });
@@ -41,14 +62,12 @@ export class WorkerService {
     return !!activeShift;
   }
 
- 
   private getStationFromStatus(status: OrderStatus): Station {
     if (status === OrderStatus.WASHING) return Station.WASHING;
     if (status === OrderStatus.IRONING) return Station.IRONING;
     if (status === OrderStatus.PACKING) return Station.PACKING;
     throw new ApiError("Order is not in a worker station", 400);
   }
-
 
   private getNextStatusForStation(
     currentStation: Station,
@@ -61,28 +80,39 @@ export class WorkerService {
       return OrderStatus.PACKING;
     }
 
-  
     if (!paymentStatus || paymentStatus !== PaymentStatus.SUCCESS) {
       return OrderStatus.WAITING_FOR_PAYMENT;
     }
     return OrderStatus.READY_FOR_DELIVERY;
   }
 
+  // NEW: detect current shift from time
+  private getCurrentShift(): Shift {
+    const now = new Date();
+    const hour = now.getHours(); // 0 - 23
+
+    // MORNING: 00:00 - 11:59, NOON: 12:00 - 23:59
+    return hour < 12 ? Shift.MORNING : Shift.NOON;
+  }
+
+  // UPDATED: notify only active workers on the given station using WorkerNotification
   private async notifyWorkersForStation(
     outletId: string,
     station: Station,
     description: string
   ) {
-
-    const workers = await this.prisma.user.findMany({
+    const activeShifts = await this.prisma.worker.findMany({
       where: {
-        role: Role.WORKER,
         outletId,
+        station,
+        endTime: null,
       },
-      select: { id: true },
+      select: {
+        workerId: true,
+      },
     });
 
-    if (!workers.length) return;
+    if (!activeShifts.length) return;
 
     const notification = await this.prisma.notification.create({
       data: {
@@ -91,14 +121,61 @@ export class WorkerService {
       },
     });
 
-    await this.prisma.userNotification.createMany({
-      data: workers.map((w) => ({
-        userId: w.id,
+    await this.prisma.workerNotification.createMany({
+      data: activeShifts.map((shift) => ({
+        workerid: shift.workerId,
         notificationId: notification.id,
       })),
     });
   }
 
+  // NEW: auto-checkout expired shifts based on MORNING / NOON shift schedule
+  autoCheckoutExpiredShifts = async () => {
+    const now = new Date();
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Get all active shifts with endTime still null
+    const activeShifts = await this.prisma.worker.findMany({
+      where: {
+        endTime: null,
+        startTime: { gte: startOfToday },
+      },
+      select: { id: true, startTime: true, shift: true },
+    });
+
+    const updates = [];
+
+    for (const shift of activeShifts) {
+      // Determine shift’s scheduled end time
+      const scheduledEnd = new Date(shift.startTime);
+
+      if (shift.shift === Shift.MORNING) {
+        scheduledEnd.setHours(12, 0, 0, 0); // MORNING ends at 12:00
+      } else {
+        scheduledEnd.setHours(23, 59, 59, 999); // NOON ends at midnight
+      }
+
+      if (now >= scheduledEnd) {
+        updates.push(
+          this.prisma.worker.update({
+            where: { id: shift.id },
+            data: { endTime: scheduledEnd },
+          })
+        );
+      }
+    }
+
+    if (updates.length > 0) {
+      await this.prisma.$transaction(updates);
+    }
+
+    return {
+      message: "Expired worker shifts auto-checked-out",
+      count: updates.length,
+    };
+  };
 
   getOrdersForStation = async (
     userId: string,
@@ -137,13 +214,14 @@ export class WorkerService {
   ) => {
     const workerUser = await this.assertWorker(userId, role);
 
-  
+    // NEW: enforce attendance before processing
+    await this.ensureActiveAttendance(workerUser.id);
+
     const isBusy = await this.isWorkerBusy(workerUser.id);
     if (isBusy) {
       throw new ApiError("Worker is currently busy on another job", 400);
     }
 
-   
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -155,7 +233,6 @@ export class WorkerService {
 
     const currentStation = this.getStationFromStatus(order.status);
 
-   
     const existingProcess = await this.prisma.orderWorkProcess.findFirst({
       where: {
         orderId: order.id,
@@ -176,7 +253,6 @@ export class WorkerService {
       );
     }
 
-  
     const dbItems = order.orderItems.map((i) => ({
       id: i.laundryItemId,
       qty: i.quantity,
@@ -195,7 +271,6 @@ export class WorkerService {
       });
 
     if (mismatch) {
-      
       return {
         ok: false,
         needBypass: true,
@@ -204,22 +279,20 @@ export class WorkerService {
       };
     }
 
-   
     const result = await this.prisma.$transaction(async (tx) => {
-      
       const shift = await tx.worker.create({
         data: {
-          workerId: workerUser.id, 
+          workerId: workerUser.id,
           outletId: order.outletId,
           station: currentStation,
           startTime: new Date(),
-          shift: Shift.MORNING, 
+          shift: this.getCurrentShift(), // ⬅️ CHANGED HERE
         },
       });
 
       const workProcess = await tx.orderWorkProcess.create({
         data: {
-          workerId: shift.id, 
+          workerId: shift.id,
           orderId: order.id,
           station: currentStation,
           status: OrderWorkProcessStatus.IN_PROCESS,
@@ -238,7 +311,6 @@ export class WorkerService {
       workProcessId: result.workProcess.id,
     };
   };
-
 
   requestBypass = async (
     userId: string,
@@ -278,7 +350,6 @@ export class WorkerService {
     return { message: "Bypass request sent to admin" };
   };
 
-
   completeOrderStation = async (
     userId: string,
     role: Role,
@@ -286,7 +357,9 @@ export class WorkerService {
   ) => {
     const workerUser = await this.assertWorker(userId, role);
 
-    // Active shift = worker busy at some station
+    // NEW: enforce attendance before completing a station
+    await this.ensureActiveAttendance(workerUser.id);
+
     const activeShift = await this.prisma.worker.findFirst({
       where: {
         workerId: workerUser.id,
@@ -321,7 +394,6 @@ export class WorkerService {
     );
 
     await this.prisma.$transaction(async (tx) => {
-      // 1) move order status
       await tx.order.update({
         where: { id: order.id },
         data: {
@@ -333,7 +405,6 @@ export class WorkerService {
         },
       });
 
-   
       await tx.worker.update({
         where: { id: activeShift.id },
         data: {
@@ -341,7 +412,6 @@ export class WorkerService {
         },
       });
 
-      // 3) mark the work-process row as completed
       await tx.orderWorkProcess.updateMany({
         where: {
           orderId: order.id,
@@ -356,7 +426,6 @@ export class WorkerService {
       });
     });
 
-    // notify next station workers if needed
     if (nextStatus === OrderStatus.IRONING) {
       await this.notifyWorkersForStation(
         order.outletId,
@@ -377,9 +446,6 @@ export class WorkerService {
     };
   };
 
-  // ======================================================
-  // JOB HISTORY
-  // ======================================================
   // GET /worker/history
   getHistory = async (userId: string, role: Role) => {
     await this.assertWorker(userId, role);

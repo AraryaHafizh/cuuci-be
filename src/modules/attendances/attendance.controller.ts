@@ -6,6 +6,13 @@ import {
   GetAttendanceReportDTO,
 } from "./dto/attendance.dto";
 import { ApiError } from "../../utils/api-error";
+import { Shift } from "../../generated/prisma/enums"; // ✅ NEW
+
+// ✅ helper to derive shift from checkIn time
+const getShiftFromDate = (date: Date): Shift => {
+  const hour = date.getHours();
+  return hour < 12 ? Shift.MORNING : Shift.NOON;
+};
 
 export class AttendanceController {
   private attendanceService: AttendanceService;
@@ -22,7 +29,14 @@ export class AttendanceController {
     }
 
     const attendance = await this.attendanceService.checkIn(String(auth.id));
-    res.status(201).json({ success: true, data: attendance });
+
+    // ✅ add shift based on checkIn time
+    const responseData = {
+      ...attendance,
+      shift: getShiftFromDate(new Date(attendance.checkIn)),
+    };
+
+    res.status(201).json({ success: true, data: responseData });
   };
 
   // POST /attendance/check-out
@@ -33,43 +47,59 @@ export class AttendanceController {
     }
 
     const updated = await this.attendanceService.checkOut(String(auth.id));
-    res.status(200).json({ success: true, data: updated });
+
+    // ✅ add shift based on original checkIn time
+    const responseData = {
+      ...updated,
+      shift: getShiftFromDate(new Date(updated.checkIn)),
+    };
+
+    res.status(200).json({ success: true, data: responseData });
   };
 
   // GET /attendance/log?from=&to=&userId=
-  getLog = async (req: Request, res: Response) => {
-    const auth = res.locals.user;
-    if (!auth || !auth.id) {
-      throw new ApiError("Unauthenticated", 401);
-    }
+  // src/modules/attendance/attendance.controller.ts
 
-    // already validated by validateQuery(GetAttendanceLogDTO)
-    const dto = req.query as unknown as GetAttendanceLogDTO;
+  getUserAttendanceLog = async (req: Request, res: Response) => {
+    const auth = res.locals.user; // Already verified by JWT middleware
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
 
-    let targetUserId = String(auth.id);
-    if (dto.userId && dto.userId !== targetUserId) {
-      throw new ApiError("Forbidden to view other user's log", 403);
-    }
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
 
-    const list = await this.attendanceService.getUserAttendanceLog(
-      targetUserId,
-      dto
+    const result = await this.attendanceService.getUserAttendanceLog(
+      auth.id, // no need to parse dto.userId here
+      page,
+      limit,
+      from,
+      to
     );
-    res.status(200).json({ success: true, data: list });
+
+    res.status(200).json(result);
   };
 
   // GET /attendance/report?outletId=&from=&to=
-  getReport = async (req: Request, res: Response) => {
-    const auth = res.locals.user;
-    if (!auth || !auth.id) {
-      throw new ApiError("Unauthenticated", 401);
-    }
+  // src/modules/attendance/attendance.controller.ts
 
-    // already validated by validateQuery(GetAttendanceReportDTO)
-    const dto = req.query as unknown as GetAttendanceReportDTO;
+  getOutletAttendanceReport = async (req: Request, res: Response) => {
+    const auth = res.locals.user; // already verified by JWT
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
 
-    const report =
-      await this.attendanceService.getOutletAttendanceReport(dto);
-    res.status(200).json({ success: true, data: report });
+    const outletId = req.query.outletId as string;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+
+    const result = await this.attendanceService.getOutletAttendanceReport({
+      requesterId: auth.id,
+      outletId,
+      page,
+      limit,
+      from,
+      to,
+    });
+
+    res.status(200).json(result);
   };
 }

@@ -7,9 +7,11 @@ import { UserUpdateRouter } from "./modules/users/user.router";
 import { DriverRouter } from "./modules/driver/driver.router";
 import { WorkerRouter } from "./modules/worker/worker.router";
 import { AttendanceRouter } from "./modules/attendances/attendance.router";
+import "./cron"; 
 
 export class App {
   app: Express;
+  
   constructor() {
     this.app = express();
     this.configure();
@@ -27,13 +29,13 @@ export class App {
     const userUpdaterouter = new UserUpdateRouter();
     const attendanceRouter = new AttendanceRouter();
     const driverRouter = new DriverRouter();
-    const workerRouter = new WorkerRouter(); // ✅ ADDED
+    const workerRouter = new WorkerRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendance", attendanceRouter.getRouter());
     this.app.use("/driver", driverRouter.getRouter());
-    this.app.use("/worker", workerRouter.getRouter()); // ✅ ADDED
+    this.app.use("/worker", workerRouter.getRouter()); 
   }
 
   private handleError() {
