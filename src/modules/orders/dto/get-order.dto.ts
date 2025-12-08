@@ -1,6 +1,5 @@
 import { IsEnum, IsNotEmpty } from "class-validator";
 import { OrderStatus, Role } from "../../../generated/prisma/enums";
-import { Order } from "../../../generated/prisma/client";
 
 export class GetOrderDTO {
   @IsNotEmpty()
