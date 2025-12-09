@@ -10,7 +10,16 @@ export class OutletService {
   }
 
   getOutlets = async () => {
-    const outlets = await this.prisma.outlet.findMany();
+    const outlets = await this.prisma.outlet.findMany({
+      include: {
+        orders: true,
+        workers: true,
+        drivers: true,
+      },
+      where: {
+        deletedAt: null,
+      },
+    });
     return { message: "Outets fetched successfully", data: outlets };
   };
 
