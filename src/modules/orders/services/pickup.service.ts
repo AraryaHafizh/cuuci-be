@@ -60,7 +60,7 @@ export class PickupService {
 
     const pickupNumber = randomCodeGenerator(12);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           customerId: authUserId,
@@ -75,14 +75,24 @@ export class PickupService {
           customerId: authUserId,
           addressId: selectedAddress.id,
           outletId: nearestOutlet.id,
+          orderId: order.id,
           pickupNumber,
           status: "WAITING_FOR_PICKUP",
         },
       });
-      // await tx.driverNotification.createMany({
-      //   data: {
-      //   }
-      // })
+      const drivers = await tx.driver.findMany({
+        where: { outletId: nearestOutlet.id },
+      });
+      if (!drivers) {
+        throw new ApiError("No drivers available", 400);
+      }
+      await tx.driverNotification.createMany({
+        data: drivers.map((driver) => ({
+          driverId: driver.id,
+          notificationId: order.id,
+          isread: false,
+        })),
+      });
     });
 
     return { message: "Create pickup order success!" };
