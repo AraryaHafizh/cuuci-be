@@ -1,4 +1,3 @@
-// src/modules/worker/dto/worker.dto.ts
 import {
   IsArray,
   ArrayMinSize,
@@ -33,4 +32,13 @@ export class ProcessOrderDTO {
 export class GetWorkerOrdersDTO {
   @IsEnum(Station)
   station!: Station;
+
+ 
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 }

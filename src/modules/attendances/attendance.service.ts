@@ -96,7 +96,7 @@ getUserAttendanceLog = async (
   from?: string,
   to?: string
 ) => {
-  // 1) Ensure user exists
+
   const user = await this.prisma.user.findUnique({
     where: { id: requesterUserId },
   });
@@ -105,7 +105,7 @@ getUserAttendanceLog = async (
   const targetUserId = requesterUserId;
   const skip = (page - 1) * limit;
 
-  // 2) Build 'where' with date filter inline
+ 
   const where: any = {
     userId: targetUserId,
     ...(from || to
@@ -118,7 +118,7 @@ getUserAttendanceLog = async (
       : {}),
   };
 
-  // 3) Fetch paginated data + total count
+
   const [data, total] = await this.prisma.$transaction([
     this.prisma.attendance.findMany({
       skip,
@@ -154,13 +154,13 @@ getOutletAttendanceReport = async (dto: {
 }) => {
   const { requesterId, outletId, page, limit, from, to } = dto;
 
-  // 1) Validate requester exists
+
   const requester = await this.prisma.user.findUnique({
     where: { id: requesterId },
   });
   if (!requester) throw new ApiError("Unauthorized", 401);
 
-  // 2) Verify requester is an OUTLET_ADMIN for that outlet
+ 
   if (requester.role !== Role.OUTLET_ADMIN) {
     throw new ApiError("Only outlet admins may view attendance report", 403);
   }
@@ -169,15 +169,15 @@ getOutletAttendanceReport = async (dto: {
     throw new ApiError("Not authorized for this outlet", 403);
   }
 
-  // 3) Pagination
+ 
   const skip = (page - 1) * limit;
 
-  // 4) Build date filter
+
   const dateFilter: any = {};
   if (from) dateFilter.gte = new Date(from);
   if (to) dateFilter.lte = new Date(to);
 
-  // 5) Get all workers + drivers of outlet
+  
   const workersAndDrivers = await this.prisma.user.findMany({
     where: {
       role: { in: [Role.WORKER, Role.DRIVER] },
@@ -195,7 +195,7 @@ getOutletAttendanceReport = async (dto: {
     };
   }
 
-  // 6) Fetch all attendance entries with pagination
+ 
   const [records, total] = await this.prisma.$transaction([
     this.prisma.attendance.findMany({
       skip,
@@ -215,7 +215,7 @@ getOutletAttendanceReport = async (dto: {
     }),
   ]);
 
-  // 7) Group by user
+
   const grouped: Record<
     string,
     { user: any; totalDays: number; totalHours: number; records: any[] }
@@ -264,28 +264,28 @@ getOutletAttendanceReport = async (dto: {
   };
 };
 
-  // NEW: auto-checkout attendance for workers & drivers based on shift end
+ 
   autoCheckoutExpiredAttendance = async () => {
     const now = new Date();
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    // get all attendance records with no checkOut yet (today)
+   
     const active = await this.prisma.attendance.findMany({
       where: {
         checkOut: null,
         checkIn: { gte: startOfToday },
       },
       include: {
-        user: true, // to know the role
+        user: true, 
       },
     });
 
     const updates = [];
 
     for (const record of active) {
-      // only auto-close WORKER and DRIVER
+     
       if (
         record.user.role !== Role.WORKER &&
         record.user.role !== Role.DRIVER
@@ -297,10 +297,10 @@ getOutletAttendanceReport = async (dto: {
       const hour = scheduledEnd.getHours();
 
       if (hour < 12) {
-        // MORNING shift end
+       
         scheduledEnd.setHours(12, 0, 0, 0);
       } else {
-        // NOON shift end
+      
         scheduledEnd.setHours(23, 59, 59, 999);
       }
 
@@ -325,7 +325,7 @@ getOutletAttendanceReport = async (dto: {
   };
 
 
-  // helper: last attendance for user
+  
   getLastAttendance = async (userId: string) => {
     return this.prisma.attendance.findFirst({
       where: { userId },

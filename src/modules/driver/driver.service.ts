@@ -36,7 +36,7 @@ export class DriverService {
     }
   };
 
-  // NEW: ensure driver has active attendance today before processing
+ 
   private async ensureActiveAttendance(userId: string) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -59,7 +59,7 @@ export class DriverService {
     }
   }
 
-  // NEW: ensure driver has no active pickup or delivery job
+
   private async assertNoActiveJob(driverId: string) {
     const activePickup = await this.prisma.pickupOrder.findFirst({
       where: {
@@ -80,7 +80,7 @@ export class DriverService {
     }
   }
 
-  // NEW: notify driver when there are pickup/delivery requests
+
   private async notifyDriverForRequests(
     driverId: string,
     pickupCount: number,
@@ -103,7 +103,7 @@ export class DriverService {
     });
   }
 
-  // NEW: auto-checkout driver sessions based on MORNING / NOON window
+ 
   autoCheckoutExpiredDriverSessions = async () => {
     const now = new Date();
 
@@ -128,10 +128,10 @@ export class DriverService {
       const hour = scheduledEnd.getHours();
 
       if (hour < 12) {
-        // "morning session"
+       
         scheduledEnd.setHours(12, 0, 0, 0);
       } else {
-        // "noon session"
+      
         scheduledEnd.setHours(23, 59, 59, 999);
       }
 
@@ -219,7 +219,7 @@ export class DriverService {
       this.prisma.deliveryOrder.count({ where: deliveryWhere }),
     ]);
 
-    // NEW: create a notification entry for this driver about available requests
+   
     await this.notifyDriverForRequests(
       driver.id,
       pickupRequests.length,
@@ -324,10 +324,10 @@ export class DriverService {
     this.assertDriverRole(role);
     const driver = await this.getActiveDriverByUserId(userId);
 
-    // NEW: must have active attendance
+   
     await this.ensureActiveAttendance(userId);
 
-    // NEW: must not have any active job (pickup or delivery)
+  
     await this.assertNoActiveJob(driver.id);
 
     const pickupOrder = await this.prisma.pickupOrder.findUnique({
@@ -380,7 +380,7 @@ export class DriverService {
     this.assertDriverRole(role);
     const driver = await this.getActiveDriverByUserId(userId);
 
-    // NEW: enforce attendance also on completion
+   
     await this.ensureActiveAttendance(userId);
 
     const pickupOrder = await this.prisma.pickupOrder.findUnique({

@@ -9,6 +9,7 @@ import {
   OrderWorkProcessStatus,
 } from "../../generated/prisma/enums";
 import { ProcessOrderItemDTO } from "./dto/worker.dto";
+import { Prisma } from "@prisma/client";
 
 export class WorkerService {
   private prisma: PrismaService;
@@ -28,7 +29,6 @@ export class WorkerService {
     return worker;
   }
 
-  // NEW: ensure worker has active attendance today
   private async ensureActiveAttendance(userId: string) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -66,7 +66,6 @@ export class WorkerService {
     if (status === OrderStatus.WASHING) return Station.WASHING;
     if (status === OrderStatus.IRONING) return Station.IRONING;
 
-    // 🔹 CHANGED: treat WAITING_FOR_PAYMENT as still part of PACKING station
     if (
       status === OrderStatus.PACKING ||
       status === OrderStatus.WAITING_FOR_PAYMENT
@@ -94,22 +93,17 @@ export class WorkerService {
     return OrderStatus.READY_FOR_DELIVERY;
   }
 
-  // NEW: simple helper to generate a unique delivery number
   private generateDeliveryNumber(orderId: string): string {
     const now = new Date();
     return `DEL-${orderId}-${now.getTime()}`;
   }
 
-  // NEW: detect current shift from time
   private getCurrentShift(): Shift {
     const now = new Date();
-    const hour = now.getHours(); // 0 - 23
-
-    // MORNING: 00:00 - 11:59, NOON: 12:00 - 23:59
+    const hour = now.getHours();
     return hour < 12 ? Shift.MORNING : Shift.NOON;
   }
 
-  // UPDATED: notify only active workers on the given station using WorkerNotification
   private async notifyWorkersForStation(
     outletId: string,
     station: Station,
@@ -143,81 +137,105 @@ export class WorkerService {
     });
   }
 
-  // NEW: auto-checkout expired shifts based on MORNING / NOON shift schedule
-  autoCheckoutExpiredShifts = async () => {
-    const now = new Date();
+  
+autoCheckoutExpiredShifts = async () => {
+  const now = new Date();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+  const activeShifts = await this.prisma.worker.findMany({
+    where: {
+      endTime: null,
+      startTime: { gte: startOfToday },
+    },
+    select: { id: true, startTime: true, shift: true },
+  });
 
-    // Get all active shifts with endTime still null
-    const activeShifts = await this.prisma.worker.findMany({
-      where: {
-        endTime: null,
-        startTime: { gte: startOfToday },
-      },
-      select: { id: true, startTime: true, shift: true },
-    });
+  const updates: Prisma.PrismaPromise<any>[] = [];
 
-    const updates = [];
+  for (const shift of activeShifts) {
+    const scheduledEnd = new Date(shift.startTime);
 
-    for (const shift of activeShifts) {
-      // Determine shift’s scheduled end time
-      const scheduledEnd = new Date(shift.startTime);
-
-      if (shift.shift === Shift.MORNING) {
-        scheduledEnd.setHours(12, 0, 0, 0); // MORNING ends at 12:00
-      } else {
-        scheduledEnd.setHours(23, 59, 59, 999); // NOON ends at midnight
-      }
-
-      if (now >= scheduledEnd) {
-        updates.push(
-          this.prisma.worker.update({
-            where: { id: shift.id },
-            data: { endTime: scheduledEnd },
-          })
-        );
-      }
+    if (shift.shift === Shift.MORNING) {
+      scheduledEnd.setHours(12, 0, 0, 0);
+    } else {
+      scheduledEnd.setHours(23, 59, 59, 999);
     }
 
-    if (updates.length > 0) {
-      await this.prisma.$transaction(updates);
+    if (now >= scheduledEnd) {
+      updates.push(
+        this.prisma.worker.update({
+          where: { id: shift.id },
+          data: { endTime: scheduledEnd },
+        })
+      );
     }
+  }
 
-    return {
-      message: "Expired worker shifts auto-checked-out",
-      count: updates.length,
-    };
+  if (updates.length > 0) {
+    await this.prisma.$transaction(updates);
+  }
+
+  return {
+    message: "Expired worker shifts auto-checked-out",
+    count: updates.length,
   };
+};
 
   getOrdersForStation = async (
     userId: string,
     role: Role,
-    station: Station
+    station: Station,
+    page = 1,
+    limit = 10
   ) => {
-    await this.assertWorker(userId, role);
+    const worker = await this.assertWorker(userId, role);
+    if (!worker.outletId) {
+      throw new ApiError("Worker is not assigned to any outlet", 400);
+    }
 
     let statusFilter: OrderStatus;
     if (station === Station.WASHING) statusFilter = OrderStatus.WASHING;
     else if (station === Station.IRONING) statusFilter = OrderStatus.IRONING;
     else statusFilter = OrderStatus.PACKING;
 
-    const orders = await this.prisma.order.findMany({
-      where: {
-        status: statusFilter,
-      },
-      include: {
-        customer: true,
-        address: true,
-        orderItems: {
-          include: { laundryItem: true },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    });
+    const skip = (page - 1) * limit;
 
-    return orders;
+    const [orders, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where: {
+          status: statusFilter,
+          outletId: worker.outletId,
+        },
+        include: {
+          customer: true,
+          address: true,
+          orderItems: {
+            include: { laundryItem: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+        skip,
+        take: limit,
+      }),
+      this.prisma.order.count({
+        where: {
+          status: statusFilter,
+          outletId: worker.outletId,
+        },
+      }),
+    ]);
+
+    return {
+      orders,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+      },
+    };
   };
 
   processOrder = async (
@@ -228,7 +246,6 @@ export class WorkerService {
   ) => {
     const workerUser = await this.assertWorker(userId, role);
 
-    // NEW: enforce attendance before processing
     await this.ensureActiveAttendance(workerUser.id);
 
     const isBusy = await this.isWorkerBusy(workerUser.id);
@@ -300,7 +317,7 @@ export class WorkerService {
           outletId: order.outletId,
           station: currentStation,
           startTime: new Date(),
-          shift: this.getCurrentShift(), // ⬅️ CHANGED HERE
+          shift: this.getCurrentShift(),
         },
       });
 
@@ -354,7 +371,6 @@ export class WorkerService {
       },
     });
 
-    // 🔹 find all outlet admins for this outlet
     const admins = await this.prisma.user.findMany({
       where: {
         role: Role.OUTLET_ADMIN,
@@ -370,7 +386,6 @@ export class WorkerService {
       );
     }
 
-    // 🔹 create one AdminNotification per admin (uses adminId, not outletId)
     await this.prisma.adminNotification.createMany({
       data: admins.map((admin) => ({
         adminId: admin.id,
@@ -388,7 +403,6 @@ export class WorkerService {
   ) => {
     const workerUser = await this.assertWorker(userId, role);
 
-    // NEW: enforce attendance before completing a station
     await this.ensureActiveAttendance(workerUser.id);
 
     const activeShift = await this.prisma.worker.findFirst({
@@ -436,9 +450,6 @@ export class WorkerService {
         },
       });
 
-      // 🔹 CHANGED: only end shift when:
-      //    - station is WASHING or IRONING, OR
-      //    - station is PACKING AND order becomes READY_FOR_DELIVERY
       const shouldEndShift =
         currentStation === Station.WASHING ||
         currentStation === Station.IRONING ||
@@ -467,7 +478,6 @@ export class WorkerService {
         },
       });
 
-      // when PACKING done & payment already SUCCESS, create DeliveryOrder
       if (
         currentStation === Station.PACKING &&
         nextStatus === OrderStatus.READY_FOR_DELIVERY
@@ -502,22 +512,47 @@ export class WorkerService {
     };
   };
 
-  // GET /worker/history
-  getHistory = async (userId: string, role: Role) => {
+ 
+  getHistory = async (
+    userId: string,
+    role: Role,
+    page = 1,
+    limit = 10
+  ) => {
     await this.assertWorker(userId, role);
 
-    const history = await this.prisma.worker.findMany({
-      where: {
-        workerId: userId,
-      },
-      include: {
-        outlet: true,
-      },
-      orderBy: {
-        startTime: "desc",
-      },
-    });
+    const skip = (page - 1) * limit;
 
-    return history;
+    const [history, total] = await this.prisma.$transaction([
+      this.prisma.worker.findMany({
+        where: {
+          workerId: userId,
+        },
+        include: {
+          outlet: true,
+        },
+        orderBy: {
+          startTime: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.worker.count({
+        where: {
+          workerId: userId,
+        },
+      }),
+    ]);
+
+    return {
+      history,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+      },
+    };
   };
 }

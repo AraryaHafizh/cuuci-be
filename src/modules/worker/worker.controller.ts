@@ -1,4 +1,3 @@
-// src/modules/worker/worker.controller.ts
 import { Request, Response } from "express";
 import { WorkerService } from "./worker.service";
 import { Station } from "../../generated/prisma/enums";
@@ -10,15 +9,20 @@ export class WorkerController {
     this.workerService = new WorkerService();
   }
 
-  // GET /worker/orders?station=
+  // GET /worker/orders?station=&page=&limit=
   getOrders = async (req: Request, res: Response) => {
     const authUser = res.locals.user;
     const station = req.query.station as Station;
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
     const result = await this.workerService.getOrdersForStation(
       String(authUser.id),
       authUser.role,
-      station
+      station,
+      page,
+      limit
     );
 
     res.status(200).send(result);
@@ -70,13 +74,18 @@ export class WorkerController {
     res.status(200).send(result);
   };
 
-  // GET /worker/history
+  // GET /worker/history?page=&limit=
   getHistory = async (req: Request, res: Response) => {
     const authUser = res.locals.user;
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
     const result = await this.workerService.getHistory(
       String(authUser.id),
-      authUser.role
+      authUser.role,
+      page,
+      limit
     );
 
     res.status(200).send(result);
