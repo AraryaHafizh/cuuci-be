@@ -1,4 +1,5 @@
 import { ApiError } from "../../utils/api-error";
+import { generateOutletId } from "../../utils/generate-id";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
 
@@ -10,7 +11,16 @@ export class OutletService {
   }
 
   getOutlets = async () => {
-    const outlets = await this.prisma.outlet.findMany();
+    const outlets = await this.prisma.outlet.findMany({
+      include: {
+        orders: true,
+        workers: true,
+        drivers: true,
+      },
+      where: {
+        deletedAt: null,
+      },
+    });
     return { message: "Outets fetched successfully", data: outlets };
   };
 
@@ -28,9 +38,10 @@ export class OutletService {
     });
 
     if (!admin) throw new ApiError("Admin not found", 404);
+    const outletId = generateOutletId();
 
     const outlet = await this.prisma.outlet.create({
-      data: body,
+      data: { ...body, outletId },
     });
 
     return { message: "Outlet created successfully", data: outlet };

@@ -5,6 +5,7 @@ import { PORT } from "./config/env";
 import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
 import { AttendanceRouter } from "./modules/attendances/attendance.router";
+import { OutletRouter } from "./modules/outlets/outlet.router";
 
 export class App {
   app: Express;
@@ -25,10 +26,12 @@ export class App {
     const authRouter = new AuthRouter();
     const userUpdaterouter = new UserUpdateRouter();
     const attendanceRouter = new AttendanceRouter();
+    const outletRouter = new OutletRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendance", attendanceRouter.getRouter());
+    this.app.use("/outlet", outletRouter.getRouter());
   }
 
   private handleError() {
