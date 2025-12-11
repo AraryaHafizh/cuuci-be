@@ -1,6 +1,7 @@
 import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
+import { PushBulkDTO } from "./dto/push-bulk.dto";
 import { PushDTO } from "./dto/push.dto";
 
 export class NotificationService {
@@ -178,5 +179,60 @@ export class NotificationService {
       default:
         throw new ApiError("Invalid role", 400);
     }
+  };
+
+  pushNotificationBulk = async ({
+    title,
+    description,
+    outletId,
+    role,
+  }: PushBulkDTO) => {
+    const include =
+      role === "WORKER"
+        ? { workers: true }
+        : role === "DRIVER"
+        ? { drivers: true }
+        : {};
+
+    const notif = await this.prisma.notification.create({
+      data: { title, description },
+    });
+
+    const receiver = await this.prisma.outlet.findUnique({
+      where: { id: outletId },
+      include,
+    });
+
+    if (!receiver) throw new ApiError("Outlet not found", 404);
+
+    if (role === "WORKER") {
+      await Promise.all(
+        receiver.workers.map((worker) =>
+          this.prisma.workerNotification.create({
+            data: {
+              workerId: worker.id,
+              notificationId: notif.id,
+            },
+          })
+        )
+      );
+      return;
+    }
+
+    if (role === "DRIVER") {
+      await Promise.all(
+        receiver.drivers.map((driver) =>
+          this.prisma.driverNotification.create({
+            data: {
+              driverId: driver.id,
+              notificationId: notif.id,
+            },
+          })
+        )
+      );
+      return;
+    }
+
+    throw new ApiError("Invalid role", 400);
   };
 }

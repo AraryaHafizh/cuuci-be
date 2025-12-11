@@ -11,11 +11,10 @@ export class OrderService {
 
   getOrders = async (
     authUserId: string,
-    body: GetOrderDTO, // perlu dto kah?
     // orderId?
     // status?
     // outletId?
-    // decode token kemudian di cek id nya sama apa engga
+    // decode token kemudian di cek id nya sama apa engga == res.locals.users
     // bisa juga sekalian memfilter order apa yang bisa diakses berdasarkan payload token
     page = 1,
     limit = 10,
@@ -40,7 +39,6 @@ export class OrderService {
   confirmOrder = async () => {};
 
   //====== CRON =====
-  
   autoConfirmOrder = async () => {};
   autoDeleteUnverifiedUser = async () => {};
   autoCancelUnpaidOrders = async () => {};

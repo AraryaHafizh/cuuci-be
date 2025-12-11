@@ -8,6 +8,7 @@ import { DriverRouter } from "./modules/driver/driver.router";
 import { WorkerRouter } from "./modules/worker/worker.router";
 import { AttendanceRouter } from "./modules/attendances/attendance.router";
 import "./cron"; 
+import { OutletRouter } from "./modules/outlets/outlet.router";
 
 export class App {
   app: Express;
@@ -30,12 +31,14 @@ export class App {
     const attendanceRouter = new AttendanceRouter();
     const driverRouter = new DriverRouter();
     const workerRouter = new WorkerRouter();
+    const outletRouter = new OutletRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendance", attendanceRouter.getRouter());
     this.app.use("/driver", driverRouter.getRouter());
     this.app.use("/worker", workerRouter.getRouter()); 
+    this.app.use("/outlet", outletRouter.getRouter());
   }
 
   private handleError() {

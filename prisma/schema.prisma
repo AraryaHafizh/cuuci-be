@@ -68,6 +68,7 @@ model Address {
 
 model Outlet {
   id           String        @id @default(cuid())
+  outletId     String        @unique
   name         String
   address      String
   latitude     String
