@@ -22,6 +22,12 @@ export class UserUpdateRouter {
   }
 
   private initializedRoutes = () => {
+    this.router.get(
+      "/",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.userUpdateController.getUsers
+    );
     this.router.patch(
       "/update/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
@@ -45,14 +51,12 @@ export class UserUpdateRouter {
       validateBody(UserUpdatePasswordDTO),
       this.userUpdateController.userUpdatePassword
     );
-
-    this.router.patch(
-      "/delete-user/:id",
+    this.router.get(
+      "/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
-      this.userUpdateController.deleteUser
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
+      this.userUpdateController.getUser
     );
-
   };
   getRouter = () => {
     return this.router;
