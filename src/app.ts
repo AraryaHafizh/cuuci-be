@@ -30,8 +30,8 @@ export class App {
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
-    this.app.use("/attendance", attendanceRouter.getRouter());
-    this.app.use("/outlet", outletRouter.getRouter());
+    this.app.use("/attendances", attendanceRouter.getRouter());
+    this.app.use("/outlets", outletRouter.getRouter());
   }
 
   private handleError() {
