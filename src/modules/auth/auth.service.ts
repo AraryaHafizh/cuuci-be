@@ -107,7 +107,7 @@ export class AuthService {
     }
     const payload = { id: user.id, role: user.role };
 
-    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "2h" });
+    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "12h" });
 
     const { password, ...userWithoutPassword } = user;
 

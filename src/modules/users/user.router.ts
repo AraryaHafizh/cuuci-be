@@ -45,6 +45,14 @@ export class UserUpdateRouter {
       validateBody(UserUpdatePasswordDTO),
       this.userUpdateController.userUpdatePassword
     );
+
+    this.router.patch(
+      "/delete-user/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.userUpdateController.deleteUser
+    );
+
   };
   getRouter = () => {
     return this.router;

@@ -9,12 +9,12 @@ export class UserUpdateController {
   }
 
   userUpdate = async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const userId = req.params.userId;
     const body = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const profilePictureUrl = files.profilePictureUrl?.[0];
     const result = await this.userUpdateservice.userUpdate(
-      id,
+      userId,
       body,
       profilePictureUrl
     );
@@ -22,12 +22,18 @@ export class UserUpdateController {
   };
 
   userUpdatePassword = async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const userId = req.params.userId;
     const body = req.body;
     const result = await this.userUpdateservice.userUpdatePassword(
-      id,
+      userId,
       body
     );
+    res.status(200).send(result);
+  };
+
+  deleteUser = async (req: Request, res: Response) => {
+    const userId = req.params.userId;
+    const result = await this.userUpdateservice.deleteUser(userId);
     res.status(200).send(result);
   };
 }
