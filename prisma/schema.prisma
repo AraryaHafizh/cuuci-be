@@ -229,8 +229,8 @@ model Worker {
   workerId           String
   outlet             Outlet             @relation(fields: [outletId], references: [id])
   outletId           String
-  station            Station
-  startTime          DateTime
+  station            Station?
+  startTime          DateTime?
   endTime            DateTime?
   shift              Shift
   createdAt          DateTime           @default(now())
@@ -247,11 +247,11 @@ model Driver {
   outlet                 Outlet          @relation(fields: [outletId], references: [id])
   outletId               String
   pickupOrders           PickupOrder[]
-  pickupOrderId          String
+  pickupOrderId          String?
   currentPickupOrderId   String?
   deliveryOrders         DeliveryOrder[]
   currentDeliveryOrderId String?
-  startTime              DateTime
+  startTime              DateTime?
   endTime                DateTime?
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
