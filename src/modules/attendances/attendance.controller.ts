@@ -1,90 +1,105 @@
 // src/modules/attendance/attendance.controller.ts
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { AttendanceService } from "./attendance.service";
-import { CheckInDTO, CheckOutDTO, GetAttendanceLogDTO, GetAttendanceReportDTO } from "./dto/attendance.dto";
-import { plainToInstance } from "class-transformer";
-import { validate } from "class-validator";
+import {
+  GetAttendanceLogDTO,
+  GetAttendanceReportDTO,
+} from "./dto/attendance.dto";
 import { ApiError } from "../../utils/api-error";
+import { Shift } from "../../generated/prisma/enums"; // ✅ NEW
 
-const service = new AttendanceService();
-
-function formatValidationErrors(errors: any[]) {
-  return errors.map(e => ({ property: e.property, constraints: e.constraints }));
-}
+// ✅ helper to derive shift from checkIn time
+const getShiftFromDate = (date: Date): Shift => {
+  const hour = date.getHours();
+  return hour < 12 ? Shift.MORNING : Shift.NOON;
+};
 
 export class AttendanceController {
+  private attendanceService: AttendanceService;
+
+  constructor() {
+    this.attendanceService = new AttendanceService();
+  }
+
   // POST /attendance/check-in
-  createCheckIn = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // JwtMiddleware sets res.locals.user
-      const auth = res.locals.user;
-      if (!auth || !auth.id) throw new ApiError("Unauthenticated", 401);
-
-      const dto = plainToInstance(CheckInDTO, req.body || {});
-      const errors = await validate(dto);
-      if (errors.length) throw new ApiError(formatValidationErrors(errors).map(e => e.property + ": " + Object.values(e.constraints).join(", ")).join("; "), 400);
-
-      const attendance = await service.checkIn(String(auth.id));
-      return res.status(201).json({ success: true, data: attendance });
-    } catch (err: any) {
-      return next(err);
+  createCheckIn = async (req: Request, res: Response) => {
+    const auth = res.locals.user;
+    if (!auth || !auth.id) {
+      throw new ApiError("Unauthenticated", 401);
     }
+
+    const attendance = await this.attendanceService.checkIn(String(auth.id));
+
+    // ✅ add shift based on checkIn time
+    const responseData = {
+      ...attendance,
+      shift: getShiftFromDate(new Date(attendance.checkIn)),
+    };
+
+    res.status(201).json({ success: true, data: responseData });
   };
 
   // POST /attendance/check-out
-  createCheckOut = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const auth = res.locals.user;
-      if (!auth || !auth.id) throw new ApiError("Unauthenticated", 401);
-
-      const dto = plainToInstance(CheckOutDTO, req.body || {});
-      const errors = await validate(dto);
-      if (errors.length) throw new ApiError(formatValidationErrors(errors).map(e => e.property + ": " + Object.values(e.constraints).join(", ")).join("; "), 400);
-
-      const updated = await service.checkOut(String(auth.id));
-      return res.status(200).json({ success: true, data: updated });
-    } catch (err: any) {
-      return next(err);
+  createCheckOut = async (req: Request, res: Response) => {
+    const auth = res.locals.user;
+    if (!auth || !auth.id) {
+      throw new ApiError("Unauthenticated", 401);
     }
+
+    const updated = await this.attendanceService.checkOut(String(auth.id));
+
+    // ✅ add shift based on original checkIn time
+    const responseData = {
+      ...updated,
+      shift: getShiftFromDate(new Date(updated.checkIn)),
+    };
+
+    res.status(200).json({ success: true, data: responseData });
   };
 
   // GET /attendance/log?from=&to=&userId=
-  getLog = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const auth = res.locals.user;
-      if (!auth || !auth.id) throw new ApiError("Unauthenticated", 401);
+  // src/modules/attendance/attendance.controller.ts
 
-      const dto = plainToInstance(GetAttendanceLogDTO, req.query || {});
-      const errors = await validate(dto);
-      if (errors.length) throw new ApiError(formatValidationErrors(errors).map(e => e.property + ": " + Object.values(e.constraints).join(", ")).join("; "), 400);
+  getUserAttendanceLog = async (req: Request, res: Response) => {
+    const auth = res.locals.user; // Already verified by JWT middleware
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
 
-      // If dto.userId provided and not equal to auth user id, deny (role-based check should be via JwtMiddleware.verifyRole)
-      let targetUserId = String(auth.id);
-      if (dto.userId && dto.userId !== targetUserId) {
-        throw new ApiError("Forbidden to view other user's log", 403);
-      }
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
 
-      const list = await service.getUserAttendanceLog(targetUserId, dto);
-      return res.status(200).json({ success: true, data: list });
-    } catch (err: any) {
-      return next(err);
-    }
+    const result = await this.attendanceService.getUserAttendanceLog(
+      auth.id, // no need to parse dto.userId here
+      page,
+      limit,
+      from,
+      to
+    );
+
+    res.status(200).json(result);
   };
 
   // GET /attendance/report?outletId=&from=&to=
-  getReport = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const auth = res.locals.user;
-      if (!auth || !auth.id) throw new ApiError("Unauthenticated", 401);
+  // src/modules/attendance/attendance.controller.ts
 
-      const dto = plainToInstance(GetAttendanceReportDTO, req.query || {});
-      const errors = await validate(dto);
-      if (errors.length) throw new ApiError(formatValidationErrors(errors).map(e => e.property + ": " + Object.values(e.constraints).join(", ")).join("; "), 400);
+  getOutletAttendanceReport = async (req: Request, res: Response) => {
+    const auth = res.locals.user; // already verified by JWT
+    const page = +(req.query.page || 1);
+    const limit = +(req.query.limit || 10);
 
-      const report = await service.getOutletAttendanceReport(dto);
-      return res.status(200).json({ success: true, data: report });
-    } catch (err: any) {
-      return next(err);
-    }
+    const outletId = req.query.outletId as string;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+
+    const result = await this.attendanceService.getOutletAttendanceReport({
+      requesterId: auth.id,
+      outletId,
+      page,
+      limit,
+      from,
+      to,
+    });
+
+    res.status(200).json(result);
   };
 }
