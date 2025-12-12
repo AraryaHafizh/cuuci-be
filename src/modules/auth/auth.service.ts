@@ -35,16 +35,19 @@ export class AuthService {
     }
 
     const hashedPassword = await hashPassword(body.password);
+    const isVerified = body.role !== "CUSTOMER";
 
     // create user akh
     const newUser = await this.prisma.user.create({
       data: {
         email: body.email,
         role: body.role,
+        phoneNumber: body.phoneNumber,
         password: hashedPassword,
         name: body.name,
-        emailVerified: false,
+        emailVerified: isVerified,
         verifiedAt: null,
+        outletId: body.outletId,
       },
     });
 
@@ -71,7 +74,7 @@ export class AuthService {
     });
 
     if (!user) throw new ApiError("User not found", 404);
-    if (user.emailVerified) throw new ApiError ("Email already verified", 400);
+    if (user.emailVerified) throw new ApiError("Email already verified", 400);
 
     await this.prisma.user.update({
       where: { id: authUserId },
@@ -107,7 +110,7 @@ export class AuthService {
     }
     const payload = { id: user.id, role: user.role };
 
-    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "2h" });
+    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "12h" });
 
     const { password, ...userWithoutPassword } = user;
 

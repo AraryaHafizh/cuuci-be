@@ -39,6 +39,8 @@ export class App {
     this.app.use("/driver", driverRouter.getRouter());
     this.app.use("/worker", workerRouter.getRouter()); 
     this.app.use("/outlet", outletRouter.getRouter());
+    this.app.use("/attendances", attendanceRouter.getRouter());
+    this.app.use("/outlets", outletRouter.getRouter());
   }
 
   private handleError() {
