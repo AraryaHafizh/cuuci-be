@@ -450,10 +450,8 @@ export class DriverService {
     this.assertDriverRole(role);
     const driver = await this.getActiveDriverByUserId(userId);
 
-    // NEW: must have active attendance
     await this.ensureActiveAttendance(userId);
 
-    // NEW: must not have any active job
     await this.assertNoActiveJob(driver.id);
 
     const deliveryOrder = await this.prisma.deliveryOrder.findUnique({
@@ -506,7 +504,7 @@ export class DriverService {
     this.assertDriverRole(role);
     const driver = await this.getActiveDriverByUserId(userId);
 
-    // NEW: enforce attendance on completion too
+
     await this.ensureActiveAttendance(userId);
 
     const deliveryOrder = await this.prisma.deliveryOrder.findUnique({
@@ -551,7 +549,6 @@ export class DriverService {
     return updated;
   };
 
-  // NEW: driver pickup & delivery history
   getHistory = async (
     userId: string,
     role: Role,
