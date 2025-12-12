@@ -26,44 +26,70 @@ export class AuthService {
   }
 
   register = async (body: RegisterDTO) => {
-    const user = await this.prisma.user.findFirst({
+    const existingUser = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
 
-    if (user) {
-      throw new ApiError("email already exist", 400);
-    }
+    if (existingUser) throw new ApiError("email already exist", 400);
 
     const hashedPassword = await hashPassword(body.password);
     const isVerified = body.role !== "CUSTOMER";
 
-    // create user akh
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: body.email,
-        role: body.role,
-        phoneNumber: body.phoneNumber,
-        password: hashedPassword,
-        name: body.name,
-        emailVerified: isVerified,
-        verifiedAt: null,
-        outletId: body.outletId,
-      },
-    });
+    if ((body.role === "WORKER" || body.role === "DRIVER") && !body.outletId) {
+      throw new ApiError("outletId is required for workers/drivers", 400);
+    }
 
-    const payload = { id: newUser.id, type: "emailVerification" };
-    const accessToken = sign(payload, JWT_SECRET_VERIFY!, {
-      expiresIn: "5h",
-    });
+    if (body.role === "WORKER" && !body.shift) {
+      throw new ApiError("shift is required for worker", 400);
+    }
 
-    await this.mailService.sendEmail(
-      body.email,
-      "Please verify your email",
-      "verify-email",
-      {
-        verificationUrl: `${BASE_URL_FE}/verify-email/${accessToken}`, // masukin FE URL BLOOOOK
+    await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: body.email,
+          role: body.role,
+          phoneNumber: body.phoneNumber,
+          password: hashedPassword,
+          name: body.name,
+          emailVerified: isVerified,
+          verifiedAt: null,
+          outletId: body.outletId,
+        },
+      });
+
+      if (body.role === "CUSTOMER") {
+        const payload = { id: newUser.id, type: "emailVerification" };
+        const accessToken = sign(payload, JWT_SECRET_VERIFY!, {
+          expiresIn: "5h",
+        });
+
+        await this.mailService.sendEmail(
+          body.email,
+          "Please verify your email",
+          "verify-email",
+          { verificationUrl: `${BASE_URL_FE}/verify-email/${accessToken}` }
+        );
       }
-    );
+
+      if (body.role === "WORKER") {
+        await tx.worker.create({
+          data: {
+            workerId: newUser.id,
+            outletId: body.outletId!,
+            shift: body.shift!,
+          },
+        });
+      }
+
+      if (body.role === "DRIVER") {
+        await tx.driver.create({
+          data: {
+            driverId: newUser.id,
+            outletId: body.outletId!,
+          },
+        });
+      }
+    });
 
     return { message: "register user success" };
   };
