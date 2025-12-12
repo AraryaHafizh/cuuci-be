@@ -98,9 +98,9 @@ export class UserUpdateService {
     return { message: "update user success" };
   };
 
-  userUpdatePassword = async (id: string, body: UserUpdatePasswordDTO) => {
+  userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
     const user = await this.prisma.user.findFirst({
-      where: { id },
+      where: { id: userId },
     });
 
     if (!user) throw new ApiError("user not found", 404);
@@ -112,10 +112,25 @@ export class UserUpdateService {
     }
 
     await this.prisma.user.update({
-      where: { id },
+      where: { id: userId },
       data: updateData,
     });
 
     return { message: "update user success" };
+  };
+
+  deleteUser = async (userId: string) => {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: new Date() },
+    });
   };
 }
