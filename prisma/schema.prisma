@@ -70,21 +70,22 @@ model Address {
 }
 
 model Outlet {
-  id           String        @id @default(cuid())
-  outletId     String        @unique
-  name         String
-  address      String
-  latitude     String
-  longitude    String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
-  orders       Order[]
-  workers      Worker[]
-  adminId      String?
-  costumers    User[]
-  drivers      Driver[]
-  pickupOrders PickupOrder[]
+  id                 String             @id @default(cuid())
+  outletId           String             @unique
+  name               String
+  address            String
+  latitude           String
+  longitude          String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  orders             Order[]
+  workers            Worker[]
+  adminId            String?
+  costumers          User[]
+  drivers            Driver[]
+  pickupOrders       PickupOrder[]
+  orderWorkProcesses OrderWorkProcess[]
 
   @@map("outlets")
 }
@@ -126,6 +127,8 @@ model OrderWorkProcess {
   worker      Worker                 @relation(fields: [workerId], references: [id])
   orderId     String
   order       Order                  @relation(fields: [orderId], references: [id])
+  outlet      Outlet                 @relation(fields: [outletId], references: [id])
+  outletId    String
   station     Station
   status      OrderWorkProcessStatus @default(PENDING)
   notes       String?
@@ -372,6 +375,7 @@ enum Station {
 enum OrderWorkProcessStatus {
   PENDING
   IN_PROCESS
+  BYPASS_REQUESTED
   COMPLETED
   FAILED
 }
