@@ -19,12 +19,15 @@ model User {
   verifiedAt        DateTime?
   profilePictureUrl String?
   provider          Provider           @default(CREDENTIALS)
-  addresses         Address[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+  // Address relation
+  addresses         Address[]
   // Outlet admin relation
-  outletAdmin       Outlet?            @relation(fields: [outletId], references: [id])
+  outlet            Outlet?            @relation(fields: [outletId], references: [id])
   outletId          String?
+  isOutletAdmin     Boolean            @default(false)
   // Worker relations
   workers           Worker[]
   // Customer orders
@@ -96,6 +99,9 @@ model Order {
   driverId           String?
   address            Address            @relation(fields: [addressId], references: [id])
   addressId          String
+  // addressUser        String
+  // addressLon         String
+  // addressLat         String
   status             OrderStatus
   totalPrice         Int                @default(0)
   totalWeight        Int                @default(0)
