@@ -1,6 +1,6 @@
-import { ApiError } from "../../../utils/api-error";
+import { OrderStatus, Prisma, Role } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { GetOrderDTO } from "../dto/get-order.dto";
+import { GetOrdersDTO } from "../dto/get-order.dto";
 
 export class OrderService {
   private prisma: PrismaService;
@@ -11,24 +11,49 @@ export class OrderService {
 
   getOrders = async (
     authUserId: string,
-    body: GetOrderDTO, // perlu dto kah?
-    // orderId?
-    // status?
-    // outletId?
-    // decode token kemudian di cek id nya sama apa engga
-    // bisa juga sekalian memfilter order apa yang bisa diakses berdasarkan payload token
-    page = 1,
-    limit = 10,
-    search?: string
+    role: Role,
+    status: OrderStatus,
+    query: GetOrdersDTO
   ) => {
-    const user = await this.prisma.user.findFirst({
-      where: { id: authUserId },
-      include: { outletAdmin: true },
+    const { page, search, limit } = query;
+    const whereClause: Prisma.OrderWhereInput = {};
+    if (role !== "SUPER_ADMIN") {
+      whereClause.customerId = authUserId;
+    }
+    // if CUSTOMER
+    // if DRIVER
+    // if WORKER 
+    // if OUTLET_ADMIN 
+    if (search) {
+      whereClause.outlet = { name: { contains: search, mode: "insensitive" } };
+    }
+    if (status) {
+      whereClause.status = status;
+    }
+    const skip = (page - 1) * limit;
+    const orders = await this.prisma.order.findMany({
+      skip,
+      take: limit,
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    if (!user) {
-      throw new ApiError("User not found", 404)
-    }
+    const total = await this.prisma.order.count({
+      where: whereClause,
+    });
+
+    return {
+      message: "Order fetched successfully",
+      data: orders,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   };
 
   getOrderDetails = async () => {};
@@ -40,10 +65,8 @@ export class OrderService {
   confirmOrder = async () => {};
 
   //====== CRON =====
-  
   autoConfirmOrder = async () => {};
   autoDeleteUnverifiedUser = async () => {};
   autoCancelUnpaidOrders = async () => {};
   autoConfirmDeliveredOrders = async () => {};
-
 }
