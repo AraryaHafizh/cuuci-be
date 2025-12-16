@@ -15,15 +15,15 @@ export class OrderController {
   }
 
   getOrders = async (req: Request, res: Response) => {
-    const authUserId = String(res.locals.user.id);
-    const role = res.locals.user.role as Role;
+    const userData = res.locals.user;
+    const body = String(res.locals.order)
     const orderStatus = req.query.status as OrderStatus;
     const query = plainToInstance(GetOrdersDTO, req.query);
     const result = await this.orderService.getOrders(
-      authUserId,
-      role,
+      userData,
       orderStatus,
-      query
+      query,
+      body
     );
     res.status(200).send(result);
   };
