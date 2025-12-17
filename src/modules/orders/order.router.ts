@@ -26,7 +26,6 @@ export class OrderRouter {
 
   private initializedRoutes = () => {
     this.router.post(
-      "/create-order",
       "/create",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
