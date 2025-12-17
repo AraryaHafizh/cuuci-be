@@ -57,6 +57,12 @@ export class UserUpdateRouter {
       this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
       this.userUpdateController.getUser
     );
+    this.router.delete(
+      "/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.userUpdateController.deleteUser
+    );
   };
   getRouter = () => {
     return this.router;

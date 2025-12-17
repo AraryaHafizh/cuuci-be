@@ -13,6 +13,7 @@ export class OutletService {
   getOutlets = async () => {
     const outlets = await this.prisma.outlet.findMany({
       include: {
+        admin: { select: { name: true } },
         orders: true,
         workers: true,
         drivers: true,

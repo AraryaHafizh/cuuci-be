@@ -23,6 +23,7 @@ export class UserUpdateService {
 
     let where: any = {
       role: { not: "SUPER_ADMIN" },
+      deletedAt: null,
     };
 
     if (id) where.id = id;
@@ -132,5 +133,7 @@ export class UserUpdateService {
       where: { id: userId },
       data: { deletedAt: new Date() },
     });
+
+    return { message: "user deleted successfully" };
   };
 }
