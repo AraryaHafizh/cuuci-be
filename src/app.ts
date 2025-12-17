@@ -8,7 +8,7 @@ import { AttendanceRouter } from "./modules/attendances/attendance.router";
 import { OutletRouter } from "./modules/outlets/outlet.router";
 import { DriverRouter } from "./modules/drivers/driver.router";
 import { WorkerRouter } from "./modules/workers/worker.router";
-import { CustomerRouter } from "./modules/customer/customer.router";
+import { CustomerRouter } from "./modules/customers/customer.router";
 
 export class App {
   app: Express;

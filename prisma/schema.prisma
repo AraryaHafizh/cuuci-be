@@ -130,7 +130,7 @@ model OrderWorkProcess {
   workerId    String
   worker      Worker                 @relation(fields: [workerId], references: [id])
   orderId     String
-  order       Order?                 @relation(fields: [orderId], references: [id])
+  order       Order                 @relation(fields: [orderId], references: [id])
   station     Station
   status      OrderWorkProcessStatus @default(PENDING)
   notes       String?
@@ -186,8 +186,8 @@ model PickupOrder {
   outletId     String
   driver       Driver?     @relation(fields: [driverId], references: [id])
   driverId     String?
-  order        Order?      @relation(fields: [orderId], references: [id])
-  orderId      String?
+  order        Order      @relation(fields: [orderId], references: [id])
+  orderId      String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -200,8 +200,8 @@ model DeliveryOrder {
   status         OrderStatus
   driverId       String?
   driver         Driver?     @relation(fields: [driverId], references: [id])
-  orderId        String?
-  order          Order?      @relation(fields: [orderId], references: [id])
+  orderId        String
+  order          Order      @relation(fields: [orderId], references: [id])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -379,6 +379,7 @@ enum Station {
 enum OrderWorkProcessStatus {
   PENDING
   IN_PROCESS
+  BYPASS_REQUESTED
   COMPLETED
   FAILED
 }
