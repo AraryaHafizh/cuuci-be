@@ -227,8 +227,9 @@ autoCheckoutExpiredShifts = async () => {
     ]);
 
     return {
-      orders,
-      pagination: {
+      message: "Orders fetched successfully",
+      data: orders,
+      meta: {
         total,
         page,
         limit,
@@ -545,8 +546,9 @@ autoCheckoutExpiredShifts = async () => {
     ]);
 
     return {
-      history,
-      pagination: {
+      message: "History fetched successfully",
+      data: history,
+      meta: {
         total,
         page,
         limit,
