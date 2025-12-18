@@ -200,6 +200,7 @@ export class AuthService {
           password: "",
           profilePictureUrl: profile.picture,
           emailVerified: true,
+          verifiedAt: new Date(),
           provider: "GOOGLE",
         },
       });
