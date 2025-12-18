@@ -1,9 +1,9 @@
+import { plainToInstance } from "class-transformer";
 import { Request, Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
-import { plainToInstance } from "class-transformer";
+import { AuthUserDataDTO } from "../dto/auth-user-data.dto";
 import { GetOrdersDTO } from "../dto/get-order.dto";
 import { OrderService } from "../services/order.service";
-import { OrderStatus, Role } from "../../../generated/prisma/enums";
 
 export class OrderController {
   private prisma: PrismaService;
@@ -15,18 +15,17 @@ export class OrderController {
   }
 
   getOrders = async (req: Request, res: Response) => {
-    const userData = res.locals.user;
-    const body = String(res.locals.order)
-    const orderStatus = req.query.status as OrderStatus;
+    const userData = plainToInstance(AuthUserDataDTO, res.locals.user);
     const query = plainToInstance(GetOrdersDTO, req.query);
-    const result = await this.orderService.getOrders(
-      userData,
-      orderStatus,
-      query,
-      body
-    );
+    const result = await this.orderService.getOrders(userData, query);
     res.status(200).send(result);
   };
 
-  getOrderDetail = async () => {}
+  getOrderDetail = async (req: Request, res: Response) => {
+    const userData = plainToInstance(AuthUserDataDTO, res.locals.user);
+  };
+
+  confirmOrder = async () => {}
+  updateOrderStatus = async () => {}
+  createDeliveryRequest = async () => {}
 }

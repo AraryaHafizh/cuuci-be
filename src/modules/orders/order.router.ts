@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { PickupController } from "./controllers/pickup.controller";
+import { JWT_SECRET } from "../../config/env";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { UploaderMiddleware } from "../../middlewares/uploader.middleware";
-import { JWT_SECRET } from "../../config/env";
-import { PickupOrderDTO } from "./dto/pickup-order.dto";
 import { validateBody } from "../../middlewares/validation.middleware";
-import { GetOrdersDTO } from "./dto/get-order.dto";
 import { OrderController } from "./controllers/order.controller";
+import { PickupController } from "./controllers/pickup.controller";
+import { PickupOrderDTO } from "./dto/pickup-order.dto";
 
 export class OrderRouter {
   private router: Router;

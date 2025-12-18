@@ -6,6 +6,7 @@ import { AuthRouter } from "./modules/auth/auth.router";
 import { UserUpdateRouter } from "./modules/users/user.router";
 import { AttendanceRouter } from "./modules/attendances/attendance.router";
 import { OutletRouter } from "./modules/outlets/outlet.router";
+import { initScheduler } from "./script";
 
 export class App {
   app: Express;
@@ -15,6 +16,7 @@ export class App {
     this.configure();
     this.routes();
     this.handleError();
+    // initScheduler();
   }
 
   private configure() {

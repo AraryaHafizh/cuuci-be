@@ -1,7 +1,7 @@
 import { OrderStatus, Prisma } from "../../../generated/prisma/client";
-import { AuthUserData } from "../../../types/auth-user-data";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuthUserDataDTO } from "../dto/auth-user-data.dto";
 import { GetOrdersDTO } from "../dto/get-order.dto";
 
 export class OrderService {
@@ -11,15 +11,9 @@ export class OrderService {
     this.prisma = new PrismaService();
   }
 
-  getOrders = async (
-    userData: AuthUserData,
-    status: OrderStatus,
-    query: GetOrdersDTO,
-    body: any
-  ) => {
-    const { page, search, limit } = query;
-    const { authUserId, role } = userData;
-    const { isHistory, outletId } = body;
+  getOrders = async (userData: AuthUserDataDTO, query: GetOrdersDTO) => {
+    const { page, search, limit, isHistory } = query;
+    const { authUserId, role, outletId } = userData;
     const whereClause: Prisma.OrderWhereInput = {};
     const includeClause: Prisma.OrderInclude = {};
 
@@ -32,22 +26,35 @@ export class OrderService {
         break;
 
       case "DRIVER":
-        whereClause.driverId = authUserId;
-        if (isHistory) {
-          whereClause.status = "COMPLETED";
+        whereClause.outletId = outletId;
+        if (!outletId) {
+          throw new ApiError("Driver must be assigned to an outlet", 400);
         }
+        whereClause.OR = [
+          { pickupOrders: { some: { driverId: authUserId } } },
+          { deliveryOrders: { some: { driverId: authUserId } } },
+        ];
+        includeClause.pickupOrders = true;
+        includeClause.deliveryOrders = true;
         break;
 
       case "WORKER":
-        includeClause.orderWorkProcesses = true;
         whereClause.outletId = outletId;
-        if (isHistory) {
-          whereClause.status = "COMPLETED";
+        if (!outletId) {
+          throw new ApiError("Worker must be assigned to an outlet", 400);
         }
+        includeClause.orderWorkProcesses = true;
+        whereClause.orderWorkProcesses = { some: { workerId: authUserId } };
         break;
 
       case "OUTLET_ADMIN":
         whereClause.outletId = outletId;
+        if (!outletId) {
+          throw new ApiError("Worker must be assigned to an outlet", 400);
+        }
+        includeClause.payment = true;
+        includeClause.orderWorkProcesses = true;
+        includeClause.customer = true;
         break;
 
       case "SUPER_ADMIN":
@@ -56,13 +63,13 @@ export class OrderService {
         includeClause.outlet = true;
         includeClause.payment = true;
         break;
+
+      default:
+        throw new ApiError("Unauthorized", 403);
     }
 
     if (search) {
       whereClause.outlet = { name: { contains: search, mode: "insensitive" } };
-    }
-    if (status) {
-      whereClause.status = status;
     }
 
     const skip = (page - 1) * limit;
@@ -91,7 +98,7 @@ export class OrderService {
     };
   };
 
-  getOrderDetail = async (userData: AuthUserData, orderId: string) => {
+  getOrderDetail = async (userData: AuthUserDataDTO, orderId: string) => {
     const { authUserId, outletId, role } = userData;
     const whereClause: Prisma.OrderWhereInput = {};
     const includeClause: Prisma.OrderInclude = {};
@@ -133,7 +140,7 @@ export class OrderService {
         break;
 
       default:
-        throw new ApiError("Unauthorized", 401);
+        throw new ApiError("Unauthorized", 403);
     }
 
     const order = await this.prisma.order.findFirst({
@@ -150,15 +157,46 @@ export class OrderService {
     };
   };
 
-  updateOrderStatus = async () => {};
+  confirmOrder = async (authUserId: string, orderId: string) => {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { driver: true, outlet: true, payment: true },
+    });
+
+    if (!order) throw new ApiError("Order not found", 404);
+    if (order.outlet.adminId !== authUserId) {
+      throw new ApiError("Forbidden: You are not the outlet admin", 403);
+    }
+  };
+
+  updateOrderStatus = async (
+    authUserId: string,
+    orderId: string,
+    body: { status: OrderStatus }
+  ) => {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { orderWorkProcesses: true, outlet: true },
+    });
+
+    if (!order) throw new ApiError("Order not found", 404);
+    if (order.outlet.adminId !== authUserId) {
+      throw new ApiError("Forbidden: You are not the outlet admin", 403);
+    }
+
+    const result = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: body.status,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      message: `Order status updated to ${body.status}`,
+      data: result,
+    };
+  };
 
   createDeliveryRequest = async () => {};
-
-  confirmOrder = async () => {};
-
-  //====== CRON =====
-  autoConfirmOrder = async () => {};
-  autoDeleteUnverifiedUser = async () => {};
-  autoCancelUnpaidOrders = async () => {};
-  autoConfirmDeliveredOrders = async () => {};
 }
