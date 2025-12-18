@@ -22,39 +22,49 @@ export class OrderService {
     const { isHistory, outletId } = body;
     const whereClause: Prisma.OrderWhereInput = {};
     const includeClause: Prisma.OrderInclude = {};
-    if (role === "CUSTOMER") {
-      whereClause.customerId = authUserId;
-      if (isHistory) {
-        whereClause.status = "COMPLETED";
-      }
+
+    switch (role) {
+      case "CUSTOMER":
+        whereClause.customerId = authUserId;
+        if (isHistory) {
+          whereClause.status = "COMPLETED";
+        }
+        break;
+
+      case "DRIVER":
+        whereClause.driverId = authUserId;
+        if (isHistory) {
+          whereClause.status = "COMPLETED";
+        }
+        break;
+
+      case "WORKER":
+        includeClause.orderWorkProcesses = true;
+        whereClause.outletId = outletId;
+        if (isHistory) {
+          whereClause.status = "COMPLETED";
+        }
+        break;
+
+      case "OUTLET_ADMIN":
+        whereClause.outletId = outletId;
+        break;
+
+      case "SUPER_ADMIN":
+        includeClause.customer = true;
+        includeClause.address = true;
+        includeClause.outlet = true;
+        includeClause.payment = true;
+        break;
     }
-    if (role === "DRIVER") {
-      whereClause.driverId = authUserId;
-      if (isHistory) {
-        whereClause.status = "COMPLETED";
-      }
-    }
-    if (role === "WORKER") {
-      includeClause.orderWorkProcesses = true;
-      if (isHistory) {
-        whereClause.status = "COMPLETED";
-      }
-    }
-    if (role === "OUTLET_ADMIN") {
-      whereClause.outletId = outletId;
-    }
-    if (role === "SUPER_ADMIN") {
-      includeClause.customer = true
-      includeClause.address = true
-      includeClause.outlet = true
-      includeClause.payment = true
-    }
+
     if (search) {
       whereClause.outlet = { name: { contains: search, mode: "insensitive" } };
     }
     if (status) {
       whereClause.status = status;
     }
+
     const skip = (page - 1) * limit;
     const orders = await this.prisma.order.findMany({
       skip,
@@ -65,7 +75,6 @@ export class OrderService {
       },
       include: includeClause,
     });
-
     const total = await this.prisma.order.count({
       where: whereClause,
     });
