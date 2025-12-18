@@ -25,7 +25,7 @@ model User {
   // Address relation
   addresses         Address[]
   // Outlet admin relation
-  outlet            Outlet?            @relation(fields: [outletId], references: [id])
+  adminOutlet       Outlet?            @relation("OutletAdmin")
   outletId          String?
   isOutletAdmin     Boolean            @default(false)
   // Worker relations
@@ -39,6 +39,7 @@ model User {
   attendances       Attendance[]
   userNotifications UserNotification[]
   pickupOrders      PickupOrder[]
+  outlets           Outlet[]
 
   @@map("users")
 }
@@ -70,21 +71,25 @@ model Address {
 }
 
 model Outlet {
-  id           String        @id @default(cuid())
-  outletId     String        @unique
-  name         String
-  address      String
-  latitude     String
-  longitude    String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
-  orders       Order[]
-  workers      Worker[]
-  adminId      String?
-  costumers    User[]
-  drivers      Driver[]
-  pickupOrders PickupOrder[]
+  id        String    @id @default(cuid())
+  outletId  String    @unique
+  name      String
+  address   String
+  latitude  String
+  longitude String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  adminId String? @unique
+  admin   User?   @relation("OutletAdmin", fields: [adminId], references: [id])
+
+  orders             Order[]
+  workers            Worker[]
+  costumers          User[]
+  drivers            Driver[]
+  pickupOrders       PickupOrder[]
+  orderWorkProcesses OrderWorkProcess[]
 
   @@map("outlets")
 }
@@ -125,13 +130,15 @@ model OrderWorkProcess {
   workerId    String
   worker      Worker                 @relation(fields: [workerId], references: [id])
   orderId     String
-  order       Order                  @relation(fields: [orderId], references: [id])
+  order       Order                 @relation(fields: [orderId], references: [id])
   station     Station
   status      OrderWorkProcessStatus @default(PENDING)
   notes       String?
   completedAt DateTime?
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
+  outlet      Outlet?                @relation(fields: [outletId], references: [id])
+  outletId    String?
 
   @@map("order_work_processes")
 }
@@ -179,8 +186,8 @@ model PickupOrder {
   outletId     String
   driver       Driver?     @relation(fields: [driverId], references: [id])
   driverId     String?
-  order        Order?      @relation(fields: [orderId], references: [id])
-  orderId      String?
+  order        Order      @relation(fields: [orderId], references: [id])
+  orderId      String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -193,8 +200,8 @@ model DeliveryOrder {
   status         OrderStatus
   driverId       String?
   driver         Driver?     @relation(fields: [driverId], references: [id])
-  orderId        String?
-  order          Order?      @relation(fields: [orderId], references: [id])
+  orderId        String
+  order          Order      @relation(fields: [orderId], references: [id])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -232,7 +239,7 @@ model Attendance {
 model Worker {
   id                 String             @id @default(cuid())
   worker             User               @relation(fields: [workerId], references: [id])
-  workerId           String
+  workerId           String             @unique
   outlet             Outlet             @relation(fields: [outletId], references: [id])
   outletId           String
   station            Station?
@@ -249,7 +256,7 @@ model Worker {
 model Driver {
   id                     String          @id @default(cuid())
   driver                 User            @relation(fields: [driverId], references: [id])
-  driverId               String
+  driverId               String          @unique
   outlet                 Outlet          @relation(fields: [outletId], references: [id])
   outletId               String
   pickupOrders           PickupOrder[]
@@ -372,6 +379,7 @@ enum Station {
 enum OrderWorkProcessStatus {
   PENDING
   IN_PROCESS
+  BYPASS_REQUESTED
   COMPLETED
   FAILED
 }
