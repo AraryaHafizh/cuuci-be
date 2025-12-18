@@ -27,4 +27,6 @@ export class OrderController {
     );
     res.status(200).send(result);
   };
+
+  getOrderDetail = async () => {}
 }

@@ -1,6 +1,6 @@
-import { OrderStatus, Prisma, Role } from "../../../generated/prisma/client";
+import { OrderStatus, Prisma } from "../../../generated/prisma/client";
+import { AuthUserData } from "../../../types/auth-user-data";
 import { ApiError } from "../../../utils/api-error";
-import { PaginationQueryParams } from "../../pagination/dto/pagination.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GetOrdersDTO } from "../dto/get-order.dto";
 
@@ -12,7 +12,7 @@ export class OrderService {
   }
 
   getOrders = async (
-    userData: any,
+    userData: AuthUserData,
     status: OrderStatus,
     query: GetOrdersDTO,
     body: any
@@ -43,6 +43,12 @@ export class OrderService {
     if (role === "OUTLET_ADMIN") {
       whereClause.outletId = outletId;
     }
+    if (role === "SUPER_ADMIN") {
+      includeClause.customer = true
+      includeClause.address = true
+      includeClause.outlet = true
+      includeClause.payment = true
+    }
     if (search) {
       whereClause.outlet = { name: { contains: search, mode: "insensitive" } };
     }
@@ -65,7 +71,7 @@ export class OrderService {
     });
 
     return {
-      message: "Order fetched successfully",
+      message: "Orders fetched successfully",
       data: orders,
       meta: {
         page,
@@ -76,36 +82,63 @@ export class OrderService {
     };
   };
 
-  getOrderDetails = async (
-    userData: any,
-    orderId: string,
-    query: GetOrdersDTO
-  ) => {
-    const { page, search, limit } = query;
+  getOrderDetail = async (userData: AuthUserData, orderId: string) => {
     const { authUserId, outletId, role } = userData;
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        customer: true,
-        outlet: true,
-        address: true,
-        orderItems: true,
-        pickupOrders: true,
-        deliveryOrders: true,
-        payment: true,
-        orderWorkProcesses: true
-      },
+    const whereClause: Prisma.OrderWhereInput = {};
+    const includeClause: Prisma.OrderInclude = {};
+
+    whereClause.id = orderId;
+
+    switch (role) {
+      case "CUSTOMER":
+        whereClause.customerId = authUserId;
+        includeClause.orderWorkProcesses = true;
+        includeClause.payment = true;
+        break;
+
+      case "DRIVER":
+        whereClause.driverId = authUserId;
+        includeClause.address = true;
+        includeClause.pickupOrders = true;
+        includeClause.deliveryOrders = true;
+        break;
+
+      case "OUTLET_ADMIN":
+        whereClause.outletId = outletId;
+        includeClause.address = true;
+        includeClause.orderItems = true;
+        includeClause.payment = true;
+        break;
+
+      case "WORKER":
+        whereClause.outletId = outletId;
+        includeClause.orderItems = true;
+        includeClause.orderWorkProcesses = true;
+        break;
+
+      case "SUPER_ADMIN":
+        includeClause.outlet = true;
+        includeClause.customer = true;
+        includeClause.orderItems = true;
+        includeClause.payment = true;
+        break;
+
+      default:
+        throw new ApiError("Unauthorized", 401);
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: whereClause,
+      include: includeClause,
     });
-
     if (!order) {
-      throw new ApiError("Order not found", 404)
+      throw new ApiError("Order not found", 404);
     }
 
-    // unauthorized if?
-
-    if (role === "COSTUMER") {
-      
-    }
+    return {
+      message: "Order fetched successfully",
+      data: order,
+    };
   };
 
   updateOrderStatus = async () => {};
