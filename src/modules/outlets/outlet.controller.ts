@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { OutletService } from "./outlet.service";
 import { CreateDTO } from "./dto/create.dto";
+import { plainToInstance } from "class-transformer";
+import { outlets } from "./dto/outlets.dto";
 
 export class OutletController {
   private outletService: OutletService;
@@ -10,7 +12,8 @@ export class OutletController {
   }
 
   getOutlets = async (req: Request, res: Response) => {
-    const result = await this.outletService.getOutlets();
+    const query = plainToInstance(outlets, req.query);
+    const result = await this.outletService.getOutlets(query);
     res.status(200).send(result);
   };
 

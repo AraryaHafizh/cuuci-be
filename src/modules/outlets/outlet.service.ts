@@ -2,6 +2,7 @@ import { ApiError } from "../../utils/api-error";
 import { generateOutletId } from "../../utils/generate-id";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
+import { outlets } from "./dto/outlets.dto";
 
 export class OutletService {
   private prisma: PrismaService;
@@ -10,7 +11,20 @@ export class OutletService {
     this.prisma = new PrismaService();
   }
 
-  getOutlets = async () => {
+  getOutlets = async (query: outlets) => {
+    const { search } = query;
+
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (search) {
+      where.OR = [
+        { outletId: { contains: search } },
+        { name: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     const outlets = await this.prisma.outlet.findMany({
       include: {
         admin: { select: { name: true } },
@@ -18,9 +32,7 @@ export class OutletService {
         workers: true,
         drivers: true,
       },
-      where: {
-        deletedAt: null,
-      },
+      where,
     });
     return { message: "Outets fetched successfully", data: outlets };
   };
