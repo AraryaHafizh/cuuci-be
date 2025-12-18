@@ -8,6 +8,10 @@ import { AttendanceRouter } from "./modules/attendances/attendance.router";
 import { OutletRouter } from "./modules/outlets/outlet.router";
 import { initScheduler } from "./script";
 import { OrderRouter } from "./modules/orders/order.router";
+import { DriverRouter } from "./modules/drivers/driver.router";
+import { WorkerRouter } from "./modules/workers/worker.router";
+import { CustomerRouter } from "./modules/customers/customer.router";
+import { NotificationRouter } from "./modules/notifications/notification.router";
 
 export class App {
   app: Express;
@@ -31,12 +35,20 @@ export class App {
     const attendanceRouter = new AttendanceRouter();
     const outletRouter = new OutletRouter();
     const orderRouter = new OrderRouter();
+    const driverRouter = new DriverRouter();
+    const workerRouter = new WorkerRouter();
+    const customerRouter = new CustomerRouter();
+    const notificationRouter = new NotificationRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendances", attendanceRouter.getRouter());
     this.app.use("/outlets", outletRouter.getRouter());
     this.app.use("/orders", orderRouter.getRouter())
+    this.app.use("/drivers", driverRouter.getRouter());
+    this.app.use("/workers", workerRouter.getRouter());
+    this.app.use("/customers", customerRouter.getRouter());
+    this.app.use("/notifications", notificationRouter.getRouter());
   }
 
   private handleError() {
