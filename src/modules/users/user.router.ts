@@ -25,7 +25,7 @@ export class UserUpdateRouter {
     this.router.get(
       "/",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
       this.userUpdateController.getUsers
     );
     this.router.patch(
