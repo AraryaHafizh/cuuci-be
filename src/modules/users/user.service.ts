@@ -19,38 +19,44 @@ export class UserUpdateService {
   }
 
   getUsers = async (query: users) => {
-    const { id, outletId, name, role } = query;
+    const { search, outletId, role } = query;
 
-    let where: any = {
+    const where: any = {
       role: { not: "SUPER_ADMIN" },
+      deletedAt: null,
     };
 
-    if (id) where.id = id;
     if (outletId) where.outletId = outletId;
-    if (name) where.name = { contains: name, mode: "insensitive" };
     if (role) where.role = role;
 
-    const users = await this.prisma.user.findMany({
-      where,
-    });
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { id: { contains: search } },
+        { email: { contains: search, mode: "insensitive" } },
+        { phoneNumber: { contains: search } },
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({ where });
 
     const filtered = await Promise.all(
       users.map(async (user) => {
         let outletName = "";
-        if (user.role !== "CUSTOMER") {
-          const outlet = await this.outletService.getOutlet(user.outletId!);
+        if (user.role !== "CUSTOMER" && user.outletId) {
+          const outlet = await this.outletService.getOutlet(user.outletId);
           outletName = outlet.data.name;
         }
-        const { password, ...rest } = user;
 
-        return {
-          ...rest,
-          outletName,
-        };
+        const { password, ...rest } = user;
+        return { ...rest, outletName };
       })
     );
 
-    return { messae: "Users fetched suceessfully", data: filtered };
+    return {
+      message: "Users fetched successfully",
+      data: filtered,
+    };
   };
 
   getUser = async (id: string) => {
@@ -98,9 +104,9 @@ export class UserUpdateService {
     return { message: "update user success" };
   };
 
-  userUpdatePassword = async (id: string, body: UserUpdatePasswordDTO) => {
+  userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
     const user = await this.prisma.user.findFirst({
-      where: { id },
+      where: { id: userId },
     });
 
     if (!user) throw new ApiError("user not found", 404);
@@ -112,10 +118,27 @@ export class UserUpdateService {
     }
 
     await this.prisma.user.update({
-      where: { id },
+      where: { id: userId },
       data: updateData,
     });
 
     return { message: "update user success" };
+  };
+
+  deleteUser = async (userId: string) => {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: new Date() },
+    });
+
+    return { message: "user deleted successfully" };
   };
 }

@@ -1,6 +1,7 @@
 import { OrderStatus, Prisma } from "../../../generated/prisma/client";
 import { AuthUserData } from "../../../types/auth-user-data";
 import { ApiError } from "../../../utils/api-error";
+import { PaginationQueryParams } from "../../pagination/dto/pagination.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GetOrdersDTO } from "../dto/get-order.dto";
 
@@ -64,7 +65,6 @@ export class OrderService {
     if (status) {
       whereClause.status = status;
     }
-
     const skip = (page - 1) * limit;
     const orders = await this.prisma.order.findMany({
       skip,

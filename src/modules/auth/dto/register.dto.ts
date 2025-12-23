@@ -5,7 +5,7 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
-import { Role } from "../../../generated/prisma/enums";
+import { Role, Shift } from "../../../generated/prisma/enums";
 
 export class RegisterDTO {
   @IsNotEmpty()
@@ -27,6 +27,10 @@ export class RegisterDTO {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @IsOptional()
+  @IsEnum(Shift)
+  shift?: Shift;
 
   @IsOptional()
   @IsString()

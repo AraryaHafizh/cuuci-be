@@ -15,6 +15,7 @@ import { ForgotPasswordDTO } from "./dto/forgot-password.dto";
 import { LoginDTO } from "./dto/login.dto";
 import { RegisterDTO } from "./dto/register.dto";
 import { ResetPasswordDTO } from "./dto/reset-password.dto";
+import { Role } from "../../generated/prisma/enums";
 
 export class AuthService {
   private prisma: PrismaService;
@@ -26,44 +27,95 @@ export class AuthService {
   }
 
   register = async (body: RegisterDTO) => {
-    const user = await this.prisma.user.findFirst({
+    const exists = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
+    if (exists) throw new ApiError("email already exist", 400);
 
-    if (user) {
-      throw new ApiError("email already exist", 400);
+    const isVerified = body.role !== "CUSTOMER";
+    const isAdmin = body.role === "OUTLET_ADMIN";
+
+    const needsOutlet = ["WORKER", "DRIVER", "OUTLET_ADMIN"].includes(
+      body.role as keyof typeof Role
+    );
+    if (needsOutlet && !body.outletId) {
+      throw new ApiError("outletId is required", 400);
+    }
+
+    if (body.role === "WORKER" && !body.shift) {
+      throw new ApiError("shift is required for worker", 400);
     }
 
     const hashedPassword = await hashPassword(body.password);
-    const isVerified = body.role !== "CUSTOMER";
 
-    // create user akh
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: body.email,
-        role: body.role,
-        phoneNumber: body.phoneNumber,
-        password: hashedPassword,
-        name: body.name,
-        emailVerified: isVerified,
-        verifiedAt: null,
-        outletId: body.outletId,
-      },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      if (body.role === "OUTLET_ADMIN") {
+        const outlet = await tx.outlet.findUnique({
+          where: { id: body.outletId! },
+        });
 
-    const payload = { id: newUser.id, type: "emailVerification" };
-    const accessToken = sign(payload, JWT_SECRET_VERIFY!, {
-      expiresIn: "5h",
-    });
-
-    await this.mailService.sendEmail(
-      body.email,
-      "Please verify your email",
-      "verify-email",
-      {
-        verificationUrl: `${BASE_URL_FE}/verify-email/${accessToken}`, // masukin FE URL BLOOOOK
+        if (outlet?.adminId) {
+          throw new ApiError("Outlet already has an admin", 400);
+        }
       }
-    );
+
+      const user = await tx.user.create({
+        data: {
+          email: body.email,
+          role: body.role,
+          phoneNumber: body.phoneNumber,
+          password: hashedPassword,
+          name: body.name,
+          emailVerified: isVerified,
+          outletId: body.outletId,
+          isOutletAdmin: isAdmin,
+        },
+      });
+
+      switch (body.role) {
+        case "CUSTOMER": {
+          const token = sign(
+            { id: user.id, type: "emailVerification" },
+            JWT_SECRET_VERIFY!,
+            { expiresIn: "5h" }
+          );
+
+          await this.mailService.sendEmail(
+            body.email,
+            "Please verify your email",
+            "verify-email",
+            { verificationUrl: `${BASE_URL_FE}/verify-email/${token}` }
+          );
+          break;
+        }
+
+        case "WORKER":
+          await tx.worker.create({
+            data: {
+              workerId: user.id,
+              outletId: body.outletId!,
+              shift: body.shift!,
+            },
+          });
+          break;
+
+        case "DRIVER":
+          await tx.driver.create({
+            data: {
+              driverId: user.id,
+              outletId: body.outletId!,
+            },
+          });
+          break;
+
+        case "OUTLET_ADMIN":
+          await tx.outlet.update({
+            where: { id: body.outletId! },
+            data: { adminId: user.id },
+          });
+          break;
+      }
+    });
 
     return { message: "register user success" };
   };
@@ -110,7 +162,7 @@ export class AuthService {
     }
     const payload = { id: user.id, role: user.role };
 
-    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "2h" });
+    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "12h" });
 
     const { password, ...userWithoutPassword } = user;
 
@@ -127,7 +179,9 @@ export class AuthService {
     return data;
   };
 
-  loginByGoogle = async (accessToken: string) => {
+  loginByGoogle = async (body: any) => {
+    const { accessToken } = body;
+
     const profile = await this.getGoogleProfile(accessToken);
 
     if (!profile.email_verified) {
@@ -146,6 +200,7 @@ export class AuthService {
           password: "",
           profilePictureUrl: profile.picture,
           emailVerified: true,
+          verifiedAt: new Date(),
           provider: "GOOGLE",
         },
       });
