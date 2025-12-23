@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { PickupController } from "./controllers/pickup.controller";
+import { JWT_SECRET } from "../../config/env";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { UploaderMiddleware } from "../../middlewares/uploader.middleware";
-import { JWT_SECRET } from "../../config/env";
-import { PickupOrderDTO } from "./dto/pickup-order.dto";
 import { validateBody } from "../../middlewares/validation.middleware";
-import { GetOrdersDTO } from "./dto/get-order.dto";
 import { OrderController } from "./controllers/order.controller";
+import { PickupController } from "./controllers/pickup.controller";
+import { PickupOrderDTO } from "./dto/pickup-order.dto";
 
 export class OrderRouter {
   private router: Router;
@@ -25,6 +24,34 @@ export class OrderRouter {
   }
 
   private initializedRoutes = () => {
+    //================ ORDER ======================
+    this.router.get(
+      "/",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.orderController.getOrders
+    )
+    this.router.get(
+      "/detail/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.orderController.getOrderDetail
+    )
+    this.router.post(
+      "/confirm/:orderId",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.orderController.confirmOrder
+    )
+    this.router.patch(
+      "/update-order-status/:orderId",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.orderController.updateOrderStatus
+    )
+    this.router.post(
+      "/delivery",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.orderController.createDeliveryRequest
+    )
+
+    //================ PICKUP ======================
     this.router.post(
       "/create",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
@@ -37,5 +64,9 @@ export class OrderRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.orderController.getOrders
     );
+  };
+
+  getRouter = () => {
+    return this.router;
   };
 }
