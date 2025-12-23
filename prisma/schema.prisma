@@ -99,9 +99,7 @@ model Order {
   driverId           String?
   address            Address            @relation(fields: [addressId], references: [id])
   addressId          String
-  // addressUser        String
-  // addressLon         String
-  // addressLat         String
+  orderNumber        String             @unique
   status             OrderStatus
   totalPrice         Int                @default(0)
   totalWeight        Int                @default(0)

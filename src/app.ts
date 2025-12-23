@@ -7,6 +7,7 @@ import { UserUpdateRouter } from "./modules/users/user.router";
 import { AttendanceRouter } from "./modules/attendances/attendance.router";
 import { OutletRouter } from "./modules/outlets/outlet.router";
 import { initScheduler } from "./script";
+import { OrderRouter } from "./modules/orders/order.router";
 
 export class App {
   app: Express;
@@ -29,11 +30,13 @@ export class App {
     const userUpdaterouter = new UserUpdateRouter();
     const attendanceRouter = new AttendanceRouter();
     const outletRouter = new OutletRouter();
+    const orderRouter = new OrderRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendances", attendanceRouter.getRouter());
     this.app.use("/outlets", outletRouter.getRouter());
+    this.app.use("/orders", orderRouter.getRouter())
   }
 
   private handleError() {

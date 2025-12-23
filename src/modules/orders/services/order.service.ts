@@ -1,4 +1,5 @@
-import { OrderStatus, Prisma } from "../../../generated/prisma/client";
+import { OrderStatus, Prisma, Role } from "../../../generated/prisma/client";
+import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthUserDataDTO } from "../dto/auth-user-data.dto";
@@ -12,7 +13,7 @@ export class OrderService {
   }
 
   getOrders = async (userData: AuthUserDataDTO, query: GetOrdersDTO) => {
-    const { page, search, limit, isHistory } = query;
+    const { page, search, startDate, endDate, limit, isHistory } = query;
     const { authUserId, role, outletId } = userData;
     const whereClause: Prisma.OrderWhereInput = {};
     const includeClause: Prisma.OrderInclude = {};
@@ -20,8 +21,12 @@ export class OrderService {
     switch (role) {
       case "CUSTOMER":
         whereClause.customerId = authUserId;
+        includeClause.payment = true;
+        includeClause.orderWorkProcesses = true;
         if (isHistory) {
-          whereClause.status = "COMPLETED";
+          whereClause.status = { in: ["COMPLETED", "CANCELLED"] };
+        } else {
+          whereClause.status = { notIn: ["COMPLETED", "CANCELLED"] };
         }
         break;
 
@@ -30,6 +35,13 @@ export class OrderService {
         if (!outletId) {
           throw new ApiError("Driver must be assigned to an outlet", 400);
         }
+        whereClause.status = {
+          in: [
+            "WAITING_FOR_PICKUP",
+            "LAUNDRY_ON_THE_WAY",
+            "DELIVERY_ON_THE_WAY",
+          ],
+        };
         whereClause.OR = [
           { pickupOrders: { some: { driverId: authUserId } } },
           { deliveryOrders: { some: { driverId: authUserId } } },
@@ -68,8 +80,20 @@ export class OrderService {
         throw new ApiError("Unauthorized", 403);
     }
 
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
     if (search) {
-      whereClause.outlet = { name: { contains: search, mode: "insensitive" } };
+      whereClause.orderNumber = {
+        contains: search,
+        mode: "insensitive",
+      };
     }
 
     const skip = (page - 1) * limit;
@@ -114,6 +138,10 @@ export class OrderService {
 
       case "DRIVER":
         whereClause.driverId = authUserId;
+        whereClause.OR = [
+          { pickupOrders: { some: { driverId: authUserId } } },
+          { deliveryOrders: { some: { driverId: authUserId } } },
+        ];
         includeClause.address = true;
         includeClause.pickupOrders = true;
         includeClause.deliveryOrders = true;
@@ -157,16 +185,37 @@ export class OrderService {
     };
   };
 
-  confirmOrder = async (authUserId: string, orderId: string) => {
+  confirmOrder = async (role: Role, orderId: string, outletId: string) => {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { driver: true, outlet: true, payment: true },
     });
 
     if (!order) throw new ApiError("Order not found", 404);
-    if (order.outlet.adminId !== authUserId) {
-      throw new ApiError("Forbidden: You are not the outlet admin", 403);
+    if (role !== "OUTLET_ADMIN") {
+      throw new ApiError("Only outlet admin can confirm order arrival", 403);
     }
+    if (order.outletId !== outletId) {
+      throw new ApiError("This order does not belong to your outlet", 403);
+    }
+    if (order.status !== "LAUNDRY_ON_THE_WAY") {
+      throw new ApiError(
+        `Cannot confirm order. Current status: ${order.status}`,
+        400
+      );
+    }
+
+    const result = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: "ARRIVED_AT_OUTLET",
+      },
+    });
+
+    return {
+      message: "Order has arrive",
+      data: result,
+    };
   };
 
   updateOrderStatus = async (
@@ -198,5 +247,30 @@ export class OrderService {
     };
   };
 
-  createDeliveryRequest = async () => {};
+  createDeliveryRequest = async (authUserId: string, orderId: string) => {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, status: "PACKING" },
+      include: { driver: true, outlet: true, payment: true },
+    });
+
+    if (!order) throw new ApiError("Order not found", 404);
+    if (order.outlet.adminId !== authUserId) {
+      throw new ApiError("Forbidden: You are not the outlet admin", 403);
+    }
+    if (!order.payment || order.payment.status !== "SUCCESS") {
+      throw new ApiError("Order must be paid before delivery", 400);
+    }
+
+    const result = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: "READY_FOR_DELIVERY",
+      },
+    });
+
+    return {
+      message: "Order is ready to be delivered",
+      data: result,
+    };
+  };
 }

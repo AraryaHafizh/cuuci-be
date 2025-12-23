@@ -59,6 +59,7 @@ export class PickupService {
     if (!nearestOutlet) throw new ApiError("No valid outlet found", 400);
 
     const pickupNumber = randomCodeGenerator(12);
+    const orderNumber = randomCodeGenerator(12)
 
     await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -67,6 +68,7 @@ export class PickupService {
           addressId: selectedAddress.id,
           outletId: nearestOutlet.id,
           pickupTime: body.pickupTime,
+          orderNumber,
           status: "WAITING_FOR_PICKUP",
         },
       });
