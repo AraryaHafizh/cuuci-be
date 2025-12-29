@@ -1,5 +1,4 @@
 import { OrderStatus, Prisma, Role } from "../../../generated/prisma/client";
-import { randomCodeGenerator } from "../../../script/randomCodeGenerator";
 import { ApiError } from "../../../utils/api-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthUserDataDTO } from "../dto/auth-user-data.dto";
@@ -217,6 +216,12 @@ export class OrderService {
       message: "Order has arrive",
       data: result,
     };
+  };
+
+  submitOrder = async () => {
+    // order item
+    // cust info & driver info
+    // masukin price & weight
   };
 
   updateOrderStatus = async (
