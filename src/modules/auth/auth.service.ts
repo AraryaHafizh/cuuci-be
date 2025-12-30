@@ -215,6 +215,23 @@ export class AuthService {
     return { ...userWithoutPassword, accessToken: accessTokenJWT };
   };
 
+  refetch = async (id: string) => {
+    const user = await this.prisma.user.findFirst({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new ApiError("Invalid credentials", 400);
+    }
+    const payload = { id: user.id, role: user.role };
+
+    const accessToken = sign(payload, JWT_SECRET!, { expiresIn: "12h" });
+
+    const { password, ...userWithoutPassword } = user;
+
+    return { ...userWithoutPassword, accessToken };
+  };
+
   forgotPassword = async (body: ForgotPasswordDTO) => {
     // cek dulu usernya ada apa tidak di db berdasarkan email
     const user = await this.prisma.user.findFirst({
