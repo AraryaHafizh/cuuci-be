@@ -51,6 +51,7 @@ export class PickupService {
           Number(outlet.longitude)
         )
       );
+
       if (distance < shortestDistance) {
         shortestDistance = distance;
         nearestOutlet = outlet;
@@ -59,7 +60,7 @@ export class PickupService {
     if (!nearestOutlet) throw new ApiError("No valid outlet found", 400);
 
     const pickupNumber = randomCodeGenerator(12);
-    const orderNumber = randomCodeGenerator(12)
+    const orderNumber = randomCodeGenerator(12);
 
     await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -88,11 +89,18 @@ export class PickupService {
       if (!drivers) {
         throw new ApiError("No drivers available", 400);
       }
+      const notification = await tx.notification.create({
+        data: {
+          title: "New Pickup Order",
+          description: `Order ${order.orderNumber} waiting for pickup`,
+        },
+      });
+
       await tx.driverNotification.createMany({
         data: drivers.map((driver) => ({
           driverId: driver.id,
-          notificationId: order.id,
-          isread: false,
+          notificationId: notification.id, // ✅ valid FK
+          isRead: false,
         })),
       });
     });

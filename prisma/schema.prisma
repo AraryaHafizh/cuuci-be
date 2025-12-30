@@ -9,37 +9,37 @@ datasource db {
 }
 
 model User {
-  id                String             @id @default(cuid())
-  name              String
-  email             String             @unique
-  password          String
-  role              Role               @default(CUSTOMER)
-  phoneNumber       String             @default("")
-  emailVerified     Boolean            @default(false)
-  verifiedAt        DateTime?
-  profilePictureUrl String?
-  provider          Provider           @default(CREDENTIALS)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  deletedAt         DateTime?
+  id                    String                 @id @default(cuid())
+  name                  String
+  email                 String                 @unique
+  password              String
+  role                  Role                   @default(CUSTOMER)
+  phoneNumber           String                 @default("")
+  emailVerified         Boolean                @default(false)
+  verifiedAt            DateTime?
+  profilePictureUrl     String?
+  provider              Provider               @default(CREDENTIALS)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
   // Address relation
-  addresses         Address[]
+  addresses             Address[]
   // Outlet admin relation
-  adminOutlet       Outlet?            @relation("OutletAdmin")
-  outletId          String?
-  isOutletAdmin     Boolean            @default(false)
+  adminOutlet           Outlet?                @relation("OutletAdmin")
+  outletId              String?
+  isOutletAdmin         Boolean                @default(false)
   // Worker relations
-  workers           Worker[]
+  workers               Worker[]
   // Customer orders
-  orders            Order[]            @relation("CustomerOrders")
+  orders                Order[]                @relation("CustomerOrders")
   // Driver relations
-  drivers           Driver[]
-  driverOrders      Order[]            @relation("DriverOrders")
-  userTokens        UserToken[]
-  attendances       Attendance[]
-  userNotifications UserNotification[]
-  pickupOrders      PickupOrder[]
-  outlets           Outlet[]
+  drivers               Driver[]
+  driverOrders          Order[]                @relation("DriverOrders")
+  userTokens            UserToken[]
+  attendances           Attendance[]
+  pickupOrders          PickupOrder[]
+  outlets               Outlet[]
+  customerNotifications CustomerNotification[]
 
   @@map("users")
 }
@@ -90,6 +90,7 @@ model Outlet {
   drivers            Driver[]
   pickupOrders       PickupOrder[]
   orderWorkProcesses OrderWorkProcess[]
+  adminNotifications AdminNotification[]
 
   @@map("outlets")
 }
@@ -128,7 +129,7 @@ model OrderWorkProcess {
   workerId    String
   worker      Worker                 @relation(fields: [workerId], references: [id])
   orderId     String
-  order       Order                 @relation(fields: [orderId], references: [id])
+  order       Order                  @relation(fields: [orderId], references: [id])
   station     Station
   status      OrderWorkProcessStatus @default(PENDING)
   notes       String?
@@ -184,7 +185,7 @@ model PickupOrder {
   outletId     String
   driver       Driver?     @relation(fields: [driverId], references: [id])
   driverId     String?
-  order        Order      @relation(fields: [orderId], references: [id])
+  order        Order       @relation(fields: [orderId], references: [id])
   orderId      String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -199,7 +200,7 @@ model DeliveryOrder {
   driverId       String?
   driver         Driver?     @relation(fields: [driverId], references: [id])
   orderId        String
-  order          Order      @relation(fields: [orderId], references: [id])
+  order          Order       @relation(fields: [orderId], references: [id])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -235,27 +236,28 @@ model Attendance {
 }
 
 model Worker {
-  id                 String             @id @default(cuid())
-  worker             User               @relation(fields: [workerId], references: [id])
-  workerId           String             @unique
-  outlet             Outlet             @relation(fields: [outletId], references: [id])
-  outletId           String
-  station            Station?
-  startTime          DateTime?
-  endTime            DateTime?
-  shift              Shift
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  orderWorkProcesses OrderWorkProcess[]
+  id                  String               @id @default(cuid())
+  worker              User                 @relation(fields: [workerId], references: [id])
+  workerId            String               @unique
+  outlet              Outlet               @relation(fields: [outletId], references: [id])
+  outletId            String
+  station             Station?
+  startTime           DateTime?
+  endTime             DateTime?
+  shift               Shift
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  orderWorkProcesses  OrderWorkProcess[]
+  workerNotifications WorkerNotification[]
 
   @@map("workers")
 }
 
 model Driver {
-  id                     String          @id @default(cuid())
-  driver                 User            @relation(fields: [driverId], references: [id])
-  driverId               String          @unique
-  outlet                 Outlet          @relation(fields: [outletId], references: [id])
+  id                     String               @id @default(cuid())
+  driver                 User                 @relation(fields: [driverId], references: [id])
+  driverId               String               @unique
+  outlet                 Outlet               @relation(fields: [outletId], references: [id])
   outletId               String
   pickupOrders           PickupOrder[]
   pickupOrderId          String?
@@ -264,27 +266,28 @@ model Driver {
   currentDeliveryOrderId String?
   startTime              DateTime?
   endTime                DateTime?
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  driverNotifications    DriverNotification[]
 
   @@map("drivers")
 }
 
 model Notification {
-  id                  String               @id @default(cuid())
-  title               String
-  description         String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  userNotifications   UserNotification[]
-  adminNotifications  AdminNotification[]
-  workerNotifications WorkerNotification[]
-  driverNotifications DriverNotification[]
+  id                    String                 @id @default(cuid())
+  title                 String
+  description           String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  customerNotifications CustomerNotification[]
+  adminNotifications    AdminNotification[]
+  workerNotifications   WorkerNotification[]
+  driverNotifications   DriverNotification[]
 
   @@map("notifications")
 }
 
-model UserNotification {
+model CustomerNotification {
   id             String        @id @default(cuid())
   user           User          @relation(fields: [userId], references: [id])
   userId         String
@@ -294,12 +297,13 @@ model UserNotification {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  @@map("user_notifications")
+  @@map("customer_notifications")
 }
 
 model AdminNotification {
   id             String        @id @default(cuid())
-  adminId        String
+  outlet         Outlet        @relation(fields: [outletId], references: [id])
+  outletId       String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
@@ -311,6 +315,7 @@ model AdminNotification {
 
 model WorkerNotification {
   id             String        @id @default(cuid())
+  worker         Worker        @relation(fields: [workerId], references: [id])
   workerId       String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
@@ -323,6 +328,7 @@ model WorkerNotification {
 
 model DriverNotification {
   id             String        @id @default(cuid())
+  driver         Driver        @relation(fields: [driverId], references: [id])
   driverId       String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
