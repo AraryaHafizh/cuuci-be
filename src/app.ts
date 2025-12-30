@@ -12,10 +12,11 @@ import { DriverRouter } from "./modules/drivers/driver.router";
 import { WorkerRouter } from "./modules/workers/worker.router";
 import { CustomerRouter } from "./modules/customers/customer.router";
 import { NotificationRouter } from "./modules/notifications/notification.router";
+import { Addressrouter } from "./modules/addresses/address.router";
 
 export class App {
   app: Express;
-  
+
   constructor() {
     this.app = express();
     this.configure();
@@ -31,6 +32,7 @@ export class App {
 
   private routes() {
     const authRouter = new AuthRouter();
+    const addressRouter = new Addressrouter();
     const userUpdaterouter = new UserUpdateRouter();
     const attendanceRouter = new AttendanceRouter();
     const outletRouter = new OutletRouter();
@@ -41,10 +43,11 @@ export class App {
     const notificationRouter = new NotificationRouter();
 
     this.app.use("/auth", authRouter.getRouter());
+    this.app.use("/addresses", addressRouter.getRouter());
     this.app.use("/users", userUpdaterouter.getRouter());
     this.app.use("/attendances", attendanceRouter.getRouter());
     this.app.use("/outlets", outletRouter.getRouter());
-    this.app.use("/orders", orderRouter.getRouter())
+    this.app.use("/orders", orderRouter.getRouter());
     this.app.use("/drivers", driverRouter.getRouter());
     this.app.use("/workers", workerRouter.getRouter());
     this.app.use("/customers", customerRouter.getRouter());
