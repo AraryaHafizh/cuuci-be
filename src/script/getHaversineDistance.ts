@@ -3,7 +3,7 @@ export function getDistance(
   lon1: number,
   lat2: number,
   lon2: number,
-): string {
+): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const R = 6371;
 
@@ -14,7 +14,5 @@ export function getDistance(
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
-  const distance = 2 * R * Math.asin(Math.sqrt(a));
-
-  return `${distance.toFixed(2)} km`;
+  return 2 * R * Math.asin(Math.sqrt(a)); // number (km)
 }

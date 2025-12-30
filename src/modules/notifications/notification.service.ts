@@ -77,7 +77,7 @@ export class NotificationService {
   readAll = async (userId: string, role: Role) => {
     switch (role) {
       case "CUSTOMER": {
-        const updated = await this.prisma.userNotification.updateMany({
+        const updated = await this.prisma.customerNotification.updateMany({
           where: { userId },
           data: { isRead: true },
         });
@@ -111,7 +111,7 @@ export class NotificationService {
 
       case "OUTLET_ADMIN": {
         const updated = await this.prisma.adminNotification.updateMany({
-          where: { adminId: userId },
+          where: { outletId: userId },
           data: { isRead: true },
         });
         return {
@@ -137,7 +137,7 @@ export class NotificationService {
 
     switch (role) {
       case "CUSTOMER": {
-        await this.prisma.userNotification.create({
+        await this.prisma.customerNotification.create({
           data: {
             userId: receiverId,
             notificationId: notif.id,
@@ -169,7 +169,7 @@ export class NotificationService {
       case "OUTLET_ADMIN": {
         await this.prisma.adminNotification.create({
           data: {
-            adminId: receiverId,
+            outletId: receiverId,
             notificationId: notif.id,
           },
         });
