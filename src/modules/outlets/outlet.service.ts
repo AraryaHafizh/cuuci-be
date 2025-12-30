@@ -33,6 +33,8 @@ export class OutletService {
     return { message: "Outets fetched successfully", data: outlet };
   };
 
+  getNearestOutlet = async (latitude: number, longitude: number) => {};
+
   createOutlet = async (body: CreateDTO) => {
     const admin = await this.prisma.user.findFirst({
       where: { id: body.adminId },

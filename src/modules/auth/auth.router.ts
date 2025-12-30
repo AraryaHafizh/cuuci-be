@@ -41,9 +41,11 @@ export class AuthRouter {
       validateBody(LoginDTO),
       this.authController.login
     );
-    this.router.post(
-      "/google",
-      this.authController.loginByGoogle
+    this.router.post("/google", this.authController.loginByGoogle);
+    this.router.get(
+      "/refetch",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.authController.refetch
     );
     this.router.post(
       "/forgot-password",
