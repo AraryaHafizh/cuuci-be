@@ -22,6 +22,12 @@ export class OutletRouter {
       this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "CUSTOMER"]),
       this.outletController.getOutlets
     );
+    this.router.get(
+      "/nearest",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["CUSTOMER"]),
+      this.outletController.getNearestOutlet
+    );
     this.router.post(
       "/create",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
