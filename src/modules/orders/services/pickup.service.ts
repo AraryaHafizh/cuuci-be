@@ -54,7 +54,7 @@ export class PickupService {
 
       await tx.driverNotification.createMany({
         data: drivers.map((driver) => ({
-          driverId: driver.id,
+          userId: driver.driverId,
           notificationId: notification.id,
           isRead: false,
         })),

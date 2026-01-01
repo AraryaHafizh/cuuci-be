@@ -26,25 +26,19 @@ export class DriverRouter {
       this.driverController.getDrivers
     );
     this.router.get(
-      "/:id",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
-      this.driverController.getDriver
-    );
-    this.router.get(
       "/requests",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.getRequests
     );
     this.router.get(
-      "/requests/:id",
+      "/requests/ongoing",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.getRequest
+      this.driverController.getOngoingRequest
     );
     this.router.get(
-      "/requests/history/:id",
+      "/requests/history",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.getRequestsHistory
@@ -61,6 +55,12 @@ export class DriverRouter {
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.finishRequest
     );
+    this.router.get(
+      "/requests/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.getRequest
+    );
     this.router.post(
       "/delivery/pickup/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
@@ -72,6 +72,12 @@ export class DriverRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.finishDelivery
+    );
+    this.router.get(
+      "/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
+      this.driverController.getDriver
     );
   };
   getRouter = () => {

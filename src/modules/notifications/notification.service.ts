@@ -20,8 +20,8 @@ export class NotificationService {
     switch (role) {
       case "CUSTOMER":
         relationKey = "userNotifications";
-        include.userNotifications = true;
-        where.userNotifications = {
+        include.customerNotifications = true;
+        where.customerNotifications = {
           some: { userId },
         };
         break;
@@ -38,7 +38,7 @@ export class NotificationService {
         relationKey = "driverNotifications";
         include.driverNotifications = true;
         where.driverNotifications = {
-          some: { driverId: userId },
+          some: { userId },
         };
         break;
 
@@ -100,7 +100,7 @@ export class NotificationService {
 
       case "DRIVER": {
         const updated = await this.prisma.driverNotification.updateMany({
-          where: { driverId: userId },
+          where: { userId },
           data: { isRead: true },
         });
         return {
@@ -159,7 +159,7 @@ export class NotificationService {
       case "DRIVER": {
         await this.prisma.driverNotification.create({
           data: {
-            driverId: receiverId,
+            userId: receiverId,
             notificationId: notif.id,
           },
         });
@@ -224,7 +224,7 @@ export class NotificationService {
         receiver.drivers.map((driver) =>
           this.prisma.driverNotification.create({
             data: {
-              driverId: driver.id,
+              userId: driver.id,
               notificationId: notif.id,
             },
           })

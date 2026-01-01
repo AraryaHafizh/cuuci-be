@@ -73,6 +73,7 @@ export class DriverService {
 
     const requests = await this.prisma.pickupOrder.findMany({
       where: { status: "WAITING_FOR_PICKUP", outletId: outlet?.outletId },
+      include: { address: true, customer: true, order: true },
     });
 
     return {
@@ -82,17 +83,40 @@ export class DriverService {
   };
 
   getRequestsHistory = async (driverId: string) => {
-    // const histories
+    const histories = await this.prisma.order.findMany({
+      where: { driverId },
+      include: { customer: true },
+    });
+
+    return {
+      message: "History fetched successfully",
+      data: histories,
+    };
   };
 
   getRequest = async (orderId: string) => {
     const request = await this.prisma.pickupOrder.findFirst({
       where: { orderId },
-      include: { order: true },
+      include: { address: true, customer: true, order: true, outlet: true },
     });
 
     return {
       message: "Request fetched successfully",
+      data: request,
+    };
+  };
+
+  getOngoingRequest = async (driverId: string) => {
+    const driver = await this.prisma.driver.findUnique({
+      where: { driverId },
+    });
+    const request = await this.prisma.pickupOrder.findFirst({
+      where: { status: "LAUNDRY_ON_THE_WAY", driverId: driver!.id },
+      include: { address: true, customer: true, order: true, outlet: true },
+    });
+
+    return {
+      message: "driver ongoing request fetched successfully",
       data: request,
     };
   };
@@ -115,11 +139,11 @@ export class DriverService {
     await this.prisma.$transaction(async (tx) => {
       await tx.pickupOrder.update({
         where: { id: request.id },
-        data: { status: "LAUNDRY_ON_THE_WAY" },
+        data: { status: "LAUNDRY_ON_THE_WAY", driverId },
       });
       await tx.order.update({
         where: { id: request.orderId! },
-        data: { status: "LAUNDRY_ON_THE_WAY" },
+        data: { status: "LAUNDRY_ON_THE_WAY", driverId },
       });
     });
 

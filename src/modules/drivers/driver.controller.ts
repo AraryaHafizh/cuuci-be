@@ -34,9 +34,15 @@ export class DriverContorller {
     res.status(200).send(result);
   };
 
+  getOngoingRequest = async (req: Request, res: Response) => {
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getOngoingRequest(driverId);
+    res.status(200).send(result);
+  };
+
   getRequestsHistory = async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const result = await this.driverService.getRequestsHistory(id);
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getRequestsHistory(driverId);
     res.status(200).send(result);
   };
 
