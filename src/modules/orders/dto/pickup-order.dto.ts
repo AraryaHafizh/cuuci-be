@@ -5,11 +5,15 @@ export class PickupOrderDTO {
   @IsString()
   addressId!: string;
 
+  @IsNotEmpty()
+  @IsString()
+  outletId!: string
+
   @IsOptional()
   @IsString()
   notes?: string
 
   @IsOptional()
   @IsDateString()
-  pickupTime?: Date
+  pickupTime!: Date
 }

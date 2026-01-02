@@ -19,7 +19,7 @@ export class OutletRouter {
     this.router.get(
       "/",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "CUSTOMER"]),
       this.outletController.getOutlets
     );
     this.router.post(
