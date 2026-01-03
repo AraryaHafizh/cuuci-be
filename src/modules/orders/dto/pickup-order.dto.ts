@@ -1,4 +1,10 @@
-import { IsDate, IsDateString, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import {
+  IsDate,
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from "class-validator";
 
 export class PickupOrderDTO {
   @IsNotEmpty()
@@ -7,13 +13,13 @@ export class PickupOrderDTO {
 
   @IsNotEmpty()
   @IsString()
-  outletId!: string
+  outletId!: string;
 
   @IsOptional()
   @IsString()
-  notes?: string
+  notes?: string;
 
   @IsOptional()
   @IsDateString()
-  pickupTime!: Date
+  pickupTime?: Date;
 }

@@ -1,3 +1,4 @@
+import { getDistance } from "../../script/getHaversineDistance";
 import { ApiError } from "../../utils/api-error";
 import { generateOutletId } from "../../utils/generate-id";
 import { PrismaService } from "../prisma/prisma.service";
@@ -31,6 +32,67 @@ export class OutletService {
     if (!outlet) throw new ApiError("Outlet not found", 404);
 
     return { message: "Outets fetched successfully", data: outlet };
+  };
+
+  getNearestOutlet = async (
+    userId: string,
+    latitude?: number,
+    longitude?: number
+  ) => {
+    let finalLatitude: number;
+    let finalLongitude: number;
+
+    const isEmptyCoord =
+      latitude == null ||
+      longitude == null ||
+      Number.isNaN(latitude) ||
+      Number.isNaN(longitude);
+
+    if (isEmptyCoord) {
+      const defaultAddress = await this.prisma.address.findFirst({
+        where: {
+          userId,
+          isPrimary: true,
+        },
+      });
+
+      if (!defaultAddress) {
+        throw new ApiError(
+          "Default address not found and coordinates not provided",
+          400
+        );
+      }
+
+      finalLatitude = Number(defaultAddress.latitude);
+      finalLongitude = Number(defaultAddress.longitude);
+    } else {
+      finalLatitude = latitude!;
+      finalLongitude = longitude!;
+    }
+
+    const outlets = await this.prisma.outlet.findMany();
+
+    if (!outlets.length) {
+      throw new ApiError("No outlets available", 400);
+    }
+
+    const nearestOutlets = outlets
+      .map((outlet) => ({
+        ...outlet,
+        distance: getDistance(
+          finalLatitude,
+          finalLongitude,
+          Number(outlet.latitude),
+          Number(outlet.longitude)
+        ),
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 3);
+
+    return {
+      message: "Nearest outlets fetched successfully",
+      data: nearestOutlets,
+    };
   };
 
   createOutlet = async (body: CreateDTO) => {
