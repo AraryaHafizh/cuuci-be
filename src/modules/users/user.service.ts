@@ -26,7 +26,10 @@ export class UserUpdateService {
       deletedAt: null,
     };
 
-    if (outletId) where.outletId = outletId;
+    if (outletId) {
+      where.outletId = outletId;
+      where.role = { not: "OUTLET_ADMIN" };
+    }
     if (role) where.role = role;
 
     if (search) {
@@ -75,26 +78,33 @@ export class UserUpdateService {
     body: UserUpdateDTO,
     profilePictureUrl?: Express.Multer.File
   ) => {
-    const user = await this.prisma.user.findFirst({
+    const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
     if (!user) throw new ApiError("user not found", 404);
 
-    let imageUrl = user.profilePictureUrl;
+    const updateData: any = {};
+
+    if (body.name) {
+      updateData.name = body.name;
+    }
 
     if (profilePictureUrl) {
-      if (user.profilePictureUrl)
+      if (user.profilePictureUrl) {
         await this.cloudinaryService.remove(user.profilePictureUrl);
+      }
+
       const { secure_url } = await this.cloudinaryService.upload(
         profilePictureUrl
       );
-      imageUrl = secure_url;
+
+      updateData.profilePictureUrl = secure_url;
     }
 
-    const updateData: any = {};
-    if (body.name) updateData.name = body.name;
-    updateData.profilePictureUrl = imageUrl;
+    if (Object.keys(updateData).length === 0) {
+      return { message: "nothing to update" };
+    }
 
     await this.prisma.user.update({
       where: { id },
