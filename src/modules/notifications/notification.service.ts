@@ -43,10 +43,13 @@ export class NotificationService {
         break;
 
       case "OUTLET_ADMIN":
+        const outlet = await this.prisma.outlet.findUnique({
+          where: { adminId: userId },
+        });
         relationKey = "adminNotifications";
         include.adminNotifications = true;
         where.adminNotifications = {
-          some: { adminId: userId },
+          some: { outletId: outlet!.id },
         };
         break;
     }
