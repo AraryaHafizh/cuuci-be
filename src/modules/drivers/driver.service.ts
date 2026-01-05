@@ -205,6 +205,7 @@ export class DriverService {
     const driver = await this.prisma.driver.findFirst({ where: { driverId } });
     const request = await this.prisma.pickupOrder.findFirst({
       where: { orderId },
+      include: { order: true },
     });
 
     if (!request) throw new ApiError("Request not found", 404);
@@ -224,6 +225,19 @@ export class DriverService {
       await tx.order.update({
         where: { id: request.orderId! },
         data: { status: "ARRIVED_AT_OUTLET" },
+      });
+      const notification = await tx.notification.create({
+        data: {
+          title: "Order arrived at outlet",
+          description: `Order ${request.order.orderNumber} arrived at outlet`,
+        },
+      });
+      await tx.adminNotification.create({
+        data: {
+          outletId: driver.outletId,
+          notificationId: notification.id,
+          isRead: false,
+        },
       });
     });
 
