@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { DriverService } from "./driver.service";
 import { drivers } from "./dto/drivers.dto";
+import { ApiError } from "../../utils/api-error";
 
 export class DriverContorller {
   private driverService: DriverService;
@@ -34,29 +35,49 @@ export class DriverContorller {
     res.status(200).send(result);
   };
 
+  getOngoingRequest = async (req: Request, res: Response) => {
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getOngoingRequest(driverId);
+    res.status(200).send(result);
+  };
+
   getRequestsHistory = async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const result = await this.driverService.getRequestsHistory(id);
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getRequestsHistory(driverId);
     res.status(200).send(result);
   };
 
-  pickupRequest = async (req: Request, res: Response) => {
+  takeOrder = async (req: Request, res: Response) => {
     const driverId = String(res.locals.user.id);
     const orderId = req.params.id;
-    const result = await this.driverService.pickupRequest(driverId, orderId);
+    const result = await this.driverService.takeOrder(driverId, orderId);
     res.status(200).send(result);
   };
 
-  finishRequest = async (req: Request, res: Response) => {
+  confirmOrder = async (req: Request, res: Response) => {
     const driverId = String(res.locals.user.id);
     const orderId = req.params.id;
-    const result = await this.driverService.finishRequest(driverId, orderId);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const confirmationProof = files.confirmationProof?.[0];
+    if (!confirmationProof) throw new ApiError("paymentProod is required", 400);
+    const result = await this.driverService.confirmOrder(
+      driverId,
+      orderId,
+      confirmationProof
+    );
     res.status(200).send(result);
   };
 
-  pickupDelivery = async (req: Request, res: Response) => {
+  finishOrder = async (req: Request, res: Response) => {
+    const driverId = String(res.locals.user.id);
     const orderId = req.params.id;
-    const result = await this.driverService.pickupDelivery(orderId);
+    const result = await this.driverService.finishOrder(driverId, orderId);
+    res.status(200).send(result);
+  };
+
+  takeDelivery = async (req: Request, res: Response) => {
+    const orderId = req.params.id;
+    const result = await this.driverService.takeDelivery(orderId);
     res.status(200).send(result);
   };
 

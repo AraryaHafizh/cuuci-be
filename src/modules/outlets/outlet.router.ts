@@ -35,7 +35,7 @@ export class OutletRouter {
       this.outletController.createOutlet
     );
     this.router.patch(
-      "/edit",
+      "/edit/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
       this.outletController.editOutlet

@@ -29,7 +29,7 @@ export class PickupService {
           outletId,
           pickupTime,
           orderNumber,
-          status: "WAITING_FOR_PICKUP",
+          status: "LOOKING_FOR_DRIVER",
         },
       });
       await tx.pickupOrder.create({
@@ -39,7 +39,7 @@ export class PickupService {
           outletId,
           orderId: order.id,
           pickupNumber,
-          status: "WAITING_FOR_PICKUP",
+          status: "LOOKING_FOR_DRIVER",
         },
       });
       const drivers = await tx.driver.findMany({ where: { outletId } });
@@ -54,7 +54,7 @@ export class PickupService {
 
       await tx.driverNotification.createMany({
         data: drivers.map((driver) => ({
-          driverId: driver.id,
+          userId: driver.driverId,
           notificationId: notification.id,
           isRead: false,
         })),
