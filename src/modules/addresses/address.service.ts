@@ -40,6 +40,16 @@ export class AddressService {
   };
 
   createAddress = async (data: createDTO, userId: string) => {
+    const addressCount = await this.prisma.address.count({
+      where: { userId, isDeleted: false },
+    });
+
+    const isFirstAddress = addressCount === 0;
+
+    if (isFirstAddress) {
+      data.isPrimary = true;
+    }
+
     if (data.isPrimary) {
       await this.prisma.address.updateMany({
         where: { userId },
@@ -93,10 +103,6 @@ export class AddressService {
         createdAt: "asc",
       },
     });
-
-    if (addresses.length === 1) {
-      throw new ApiError("You must have at least one address", 400);
-    }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.address.update({

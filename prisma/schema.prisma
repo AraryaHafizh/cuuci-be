@@ -34,12 +34,12 @@ model User {
   orders                Order[]                @relation("CustomerOrders")
   // Driver relations
   drivers               Driver[]
-  driverOrders          Order[]                @relation("DriverOrders")
   userTokens            UserToken[]
   attendances           Attendance[]
   pickupOrders          PickupOrder[]
   outlets               Outlet[]
   customerNotifications CustomerNotification[]
+  driverNotifications   DriverNotification[]
 
   @@map("users")
 }
@@ -101,7 +101,7 @@ model Order {
   customerId         String
   outlet             Outlet             @relation(fields: [outletId], references: [id])
   outletId           String
-  driver             User?              @relation("DriverOrders", fields: [driverId], references: [id])
+  driver             Driver?            @relation(fields: [driverId], references: [id])
   driverId           String?
   address            Address            @relation(fields: [addressId], references: [id])
   addressId          String
@@ -174,21 +174,23 @@ model OrderItem {
 }
 
 model PickupOrder {
-  id           String      @id @default(cuid())
-  pickupNumber String      @unique
-  status       OrderStatus
-  customer     User        @relation(fields: [customerId], references: [id])
-  customerId   String
-  address      Address     @relation(fields: [addressId], references: [id])
-  addressId    String
-  outlet       Outlet      @relation(fields: [outletId], references: [id])
-  outletId     String
-  driver       Driver?     @relation(fields: [driverId], references: [id])
-  driverId     String?
-  order        Order       @relation(fields: [orderId], references: [id])
-  orderId      String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  pickupNumber   String      @unique
+  status         OrderStatus
+  customer       User        @relation(fields: [customerId], references: [id])
+  customerId     String
+  address        Address     @relation(fields: [addressId], references: [id])
+  addressId      String
+  outlet         Outlet      @relation(fields: [outletId], references: [id])
+  outletId       String
+  driver         Driver?     @relation(fields: [driverId], references: [id])
+  driverId       String?
+  order          Order       @relation(fields: [orderId], references: [id])
+  orderId        String
+  pickupProofUrl String?
+  pickupAt       DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@map("pickup_orders")
 }
@@ -254,10 +256,10 @@ model Worker {
 }
 
 model Driver {
-  id                     String               @id @default(cuid())
-  driver                 User                 @relation(fields: [driverId], references: [id])
-  driverId               String               @unique
-  outlet                 Outlet               @relation(fields: [outletId], references: [id])
+  id                     String          @id @default(cuid())
+  driver                 User            @relation(fields: [driverId], references: [id])
+  driverId               String          @unique
+  outlet                 Outlet          @relation(fields: [outletId], references: [id])
   outletId               String
   pickupOrders           PickupOrder[]
   pickupOrderId          String?
@@ -266,9 +268,9 @@ model Driver {
   currentDeliveryOrderId String?
   startTime              DateTime?
   endTime                DateTime?
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
-  driverNotifications    DriverNotification[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  orders                 Order[]
 
   @@map("drivers")
 }
@@ -328,8 +330,8 @@ model WorkerNotification {
 
 model DriverNotification {
   id             String        @id @default(cuid())
-  driver         Driver        @relation(fields: [driverId], references: [id])
-  driverId       String
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
@@ -390,6 +392,7 @@ enum OrderWorkProcessStatus {
 
 enum OrderStatus {
   CANCELLED
+  LOOKING_FOR_DRIVER
   WAITING_FOR_PICKUP
   LAUNDRY_ON_THE_WAY
   ARRIVED_AT_OUTLET
