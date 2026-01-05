@@ -26,16 +26,48 @@ export class DriverRouter {
       this.driverController.getDrivers
     );
     this.router.get(
-      "/:id",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
-      this.driverController.getDriver
-    );
-    this.router.get(
       "/requests",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.getRequests
+    );
+    this.router.get(
+      "/requests/ongoing",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.getOngoingRequest
+    );
+    this.router.get(
+      "/requests/history",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.getRequestsHistory
+    );
+    this.router.post(
+      "/requests/take/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.takeOrder
+    );
+    this.router.post(
+      "/requests/confirm/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.uploaderMiddleware
+        .upload()
+        .fields([{ name: "confirmationProof", maxCount: 1 }]),
+      this.uploaderMiddleware.fileFilter([
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+      ]),
+      this.driverController.confirmOrder
+    );
+    this.router.post(
+      "/requests/finish/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.finishOrder
     );
     this.router.get(
       "/requests/:id",
@@ -43,35 +75,23 @@ export class DriverRouter {
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.getRequest
     );
-    this.router.get(
-      "/requests/history/:id",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.getRequestsHistory
-    );
-    this.router.post(
-      "/requests/pickup/:id",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.pickupRequest
-    );
-    this.router.post(
-      "/requests/finish/:id",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.finishRequest
-    );
     this.router.post(
       "/delivery/pickup/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.pickupDelivery
+      this.driverController.takeDelivery
     );
     this.router.post(
       "/delivery/finish/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
       this.driverController.finishDelivery
+    );
+    this.router.get(
+      "/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
+      this.driverController.getDriver
     );
   };
   getRouter = () => {
