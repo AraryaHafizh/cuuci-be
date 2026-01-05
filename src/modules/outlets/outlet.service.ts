@@ -70,7 +70,9 @@ export class OutletService {
       finalLongitude = longitude!;
     }
 
-    const outlets = await this.prisma.outlet.findMany();
+    const outlets = await this.prisma.outlet.findMany({
+      where: { deletedAt: null },
+    });
 
     if (!outlets.length) {
       throw new ApiError("No outlets available", 400);

@@ -44,16 +44,30 @@ export class DriverRouter {
       this.driverController.getRequestsHistory
     );
     this.router.post(
-      "/requests/pickup/:id",
+      "/requests/take/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.pickupRequest
+      this.driverController.takeOrder
+    );
+    this.router.post(
+      "/requests/confirm/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.uploaderMiddleware
+        .upload()
+        .fields([{ name: "confirmationProof", maxCount: 1 }]),
+      this.uploaderMiddleware.fileFilter([
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+      ]),
+      this.driverController.confirmOrder
     );
     this.router.post(
       "/requests/finish/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.finishRequest
+      this.driverController.finishOrder
     );
     this.router.get(
       "/requests/:id",
@@ -65,7 +79,7 @@ export class DriverRouter {
       "/delivery/pickup/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
-      this.driverController.pickupDelivery
+      this.driverController.takeDelivery
     );
     this.router.post(
       "/delivery/finish/:id",

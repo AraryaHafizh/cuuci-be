@@ -72,7 +72,7 @@ export class DriverService {
     });
 
     const requests = await this.prisma.pickupOrder.findMany({
-      where: { status: "WAITING_FOR_PICKUP", outletId: outlet?.outletId },
+      where: { status: "LOOKING_FOR_DRIVER", outletId: outlet?.outletId },
       include: { address: true, customer: true, order: true },
     });
 
@@ -83,8 +83,9 @@ export class DriverService {
   };
 
   getRequestsHistory = async (driverId: string) => {
+    const driver = await this.prisma.driver.findUnique({ where: { driverId } });
     const histories = await this.prisma.order.findMany({
-      where: { driverId },
+      where: { driverId: driver!.id },
       include: { customer: true },
     });
 
@@ -111,7 +112,16 @@ export class DriverService {
       where: { driverId },
     });
     const request = await this.prisma.pickupOrder.findFirst({
-      where: { status: "LAUNDRY_ON_THE_WAY", driverId: driver!.id },
+      where: {
+        status: {
+          in: [
+            "WAITING_FOR_PICKUP",
+            "LAUNDRY_ON_THE_WAY",
+            "DELIVERY_ON_THE_WAY",
+          ],
+        },
+        driverId: driver!.id,
+      },
       include: { address: true, customer: true, order: true, outlet: true },
     });
 
@@ -121,7 +131,7 @@ export class DriverService {
     };
   };
 
-  pickupRequest = async (driverId: string, orderId: string) => {
+  takeOrder = async (driverId: string, orderId: string) => {
     const driver = await this.prisma.driver.findFirst({ where: { driverId } });
     const request = await this.prisma.pickupOrder.findFirst({
       where: { orderId },
@@ -132,25 +142,66 @@ export class DriverService {
     if (driver.outletId !== request.outletId) {
       throw new ApiError("Not authorized", 403);
     }
-    if (request.status !== "WAITING_FOR_PICKUP") {
-      throw new ApiError("Request already picked up", 400);
+    if (request.status !== "LOOKING_FOR_DRIVER") {
+      throw new ApiError("Invalid request", 400);
     }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.pickupOrder.update({
         where: { id: request.id },
-        data: { status: "LAUNDRY_ON_THE_WAY", driverId },
+        data: { status: "WAITING_FOR_PICKUP", driverId: driver.id },
       });
       await tx.order.update({
         where: { id: request.orderId! },
-        data: { status: "LAUNDRY_ON_THE_WAY", driverId },
+        data: { status: "WAITING_FOR_PICKUP", driverId: driver.id },
       });
     });
 
-    return { message: "Request picked up successfully" };
+    return { message: "Pickup assigned, driver is on the way." };
   };
 
-  finishRequest = async (driverId: string, orderId: string) => {
+  confirmOrder = async (
+    driverId: string,
+    orderId: string,
+    confirmationProof: Express.Multer.File
+  ) => {
+    const driver = await this.prisma.driver.findFirst({ where: { driverId } });
+    const request = await this.prisma.pickupOrder.findFirst({
+      where: { orderId },
+    });
+
+    if (!request) throw new ApiError("Request not found", 404);
+    if (!driver) throw new ApiError("Driver not found", 404);
+    if (request.driverId !== driver.id) {
+      throw new ApiError("Not authorized", 403);
+    }
+    if (request.status !== "WAITING_FOR_PICKUP") {
+      throw new ApiError("Invalid request", 400);
+    }
+
+    const { secure_url } = await this.cloudinaryService.upload(
+      confirmationProof
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pickupOrder.update({
+        where: { id: request.id },
+        data: {
+          status: "LAUNDRY_ON_THE_WAY",
+          pickupProofUrl: secure_url,
+          pickupAt: new Date(),
+        },
+      });
+      await tx.order.update({
+        where: { id: request.orderId! },
+        data: { status: "LAUNDRY_ON_THE_WAY" },
+      });
+    });
+
+    return { message: "Package collected, Driver en route." };
+  };
+
+  finishOrder = async (driverId: string, orderId: string) => {
     const driver = await this.prisma.driver.findFirst({ where: { driverId } });
     const request = await this.prisma.pickupOrder.findFirst({
       where: { orderId },
@@ -162,7 +213,7 @@ export class DriverService {
       throw new ApiError("Not authorized", 403);
     }
     if (request.status !== "LAUNDRY_ON_THE_WAY") {
-      throw new ApiError("Request already finished", 400);
+      throw new ApiError("Invalid request", 400);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -176,10 +227,10 @@ export class DriverService {
       });
     });
 
-    return { message: "Order successfully delivered to outlet" };
+    return { message: "Order successfully delivered to outlet." };
   };
 
-  pickupDelivery = async (orderId: string) => {
+  takeDelivery = async (orderId: string) => {
     const request = await this.prisma.deliveryOrder.findFirst({
       where: { orderId },
     });
