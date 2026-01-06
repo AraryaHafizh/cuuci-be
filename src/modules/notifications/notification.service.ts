@@ -30,7 +30,7 @@ export class NotificationService {
         relationKey = "workerNotifications";
         include.workerNotifications = true;
         where.workerNotifications = {
-          some: { workerid: userId },
+          some: { userId },
         };
         break;
 
@@ -92,7 +92,7 @@ export class NotificationService {
 
       case "WORKER": {
         const updated = await this.prisma.workerNotification.updateMany({
-          where: { workerId: userId },
+          where: { userId },
           data: { isRead: true },
         });
         return {
@@ -152,7 +152,7 @@ export class NotificationService {
       case "WORKER": {
         await this.prisma.workerNotification.create({
           data: {
-            workerId: receiverId,
+            userId: receiverId,
             notificationId: notif.id,
           },
         });
@@ -213,7 +213,7 @@ export class NotificationService {
         receiver.workers.map((worker) =>
           this.prisma.workerNotification.create({
             data: {
-              workerId: worker.id,
+              userId: worker.id,
               notificationId: notif.id,
             },
           })
