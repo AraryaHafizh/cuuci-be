@@ -32,6 +32,13 @@ export class PickupService {
           status: "LOOKING_FOR_DRIVER",
         },
       });
+      await tx.notes.create({
+        data: {
+          orderId: order.id,
+          type: "INSTRUCTION",
+          body: notes,
+        },
+      });
       await tx.pickupOrder.create({
         data: {
           customerId: authUserId,

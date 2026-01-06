@@ -27,7 +27,4 @@ export class CreatePickupOrder {
   @IsNotEmpty()
   @IsString()
   outletId!: string;
-
-  //pickupTime: Date
-  //notes: string
 }
