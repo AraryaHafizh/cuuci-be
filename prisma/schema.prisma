@@ -248,6 +248,7 @@ model Worker {
   station            Station?
   startTime          DateTime?
   endTime            DateTime?
+  isBypass           Boolean            @default(false)
   shift              Shift
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt

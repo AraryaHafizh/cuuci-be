@@ -134,54 +134,56 @@ export class NotificationService {
     receiverId,
     role,
   }: PushDTO) => {
-    const notif = await this.prisma.notification.create({
-      data: { title, description },
+    await this.prisma.$transaction(async (tx) => {
+      const notif = await tx.notification.create({
+        data: { title, description },
+      });
+
+      switch (role) {
+        case "CUSTOMER": {
+          await tx.customerNotification.create({
+            data: {
+              userId: receiverId,
+              notificationId: notif.id,
+            },
+          });
+          return { message: "Notification sent" };
+        }
+
+        case "WORKER": {
+          await tx.workerNotification.create({
+            data: {
+              userId: receiverId,
+              notificationId: notif.id,
+            },
+          });
+          return { message: "Notification sent" };
+        }
+
+        case "DRIVER": {
+          await tx.driverNotification.create({
+            data: {
+              userId: receiverId,
+              notificationId: notif.id,
+            },
+          });
+          return { message: "Notification sent" };
+        }
+
+        case "OUTLET_ADMIN": {
+          await tx.adminNotification.create({
+            data: {
+              outletId: receiverId,
+              notificationId: notif.id,
+            },
+          });
+          return { message: "Notification sent" };
+        }
+
+        default:
+          throw new ApiError("Invalid role", 400);
+      }
     });
-
-    switch (role) {
-      case "CUSTOMER": {
-        await this.prisma.customerNotification.create({
-          data: {
-            userId: receiverId,
-            notificationId: notif.id,
-          },
-        });
-        return { message: "Notification sent" };
-      }
-
-      case "WORKER": {
-        await this.prisma.workerNotification.create({
-          data: {
-            userId: receiverId,
-            notificationId: notif.id,
-          },
-        });
-        return { message: "Notification sent" };
-      }
-
-      case "DRIVER": {
-        await this.prisma.driverNotification.create({
-          data: {
-            userId: receiverId,
-            notificationId: notif.id,
-          },
-        });
-        return { message: "Notification sent" };
-      }
-
-      case "OUTLET_ADMIN": {
-        await this.prisma.adminNotification.create({
-          data: {
-            outletId: receiverId,
-            notificationId: notif.id,
-          },
-        });
-        return { message: "Notification sent" };
-      }
-
-      default:
-        throw new ApiError("Invalid role", 400);
-    }
   };
 
   pushNotificationBulk = async ({
@@ -197,45 +199,41 @@ export class NotificationService {
         ? { drivers: true }
         : {};
 
-    const notif = await this.prisma.notification.create({
-      data: { title, description },
+    await this.prisma.$transaction(async (tx) => {
+      const notif = await tx.notification.create({
+        data: { title, description },
+      });
+
+      const receiver = await tx.outlet.findUnique({
+        where: { id: outletId },
+        include,
+      });
+
+      if (!receiver) throw new ApiError("Outlet not found", 404);
+
+      if (role === "WORKER") {
+        await tx.workerNotification.createMany({
+          data: receiver.workers.map((worker) => ({
+            userId: worker.workerId,
+            notificationId: notif.id,
+            isRead: false,
+          })),
+        });
+        return;
+      }
+
+      if (role === "DRIVER") {
+        await tx.driverNotification.createMany({
+          data: receiver.drivers.map((driver) => ({
+            userId: driver.driverId,
+            notificationId: notif.id,
+            isRead: false,
+          })),
+        });
+        return;
+      }
+
+      throw new ApiError("Invalid role", 400);
     });
-
-    const receiver = await this.prisma.outlet.findUnique({
-      where: { id: outletId },
-      include,
-    });
-
-    if (!receiver) throw new ApiError("Outlet not found", 404);
-
-    if (role === "WORKER") {
-      await Promise.all(
-        receiver.workers.map((worker) =>
-          this.prisma.workerNotification.create({
-            data: {
-              userId: worker.id,
-              notificationId: notif.id,
-            },
-          })
-        )
-      );
-      return;
-    }
-
-    if (role === "DRIVER") {
-      await Promise.all(
-        receiver.drivers.map((driver) =>
-          this.prisma.driverNotification.create({
-            data: {
-              userId: driver.id,
-              notificationId: notif.id,
-            },
-          })
-        )
-      );
-      return;
-    }
-
-    throw new ApiError("Invalid role", 400);
   };
 }

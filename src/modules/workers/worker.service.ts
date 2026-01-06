@@ -1,8 +1,9 @@
 import { Station } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
-import { CloudinaryService } from "../cloudinary/cloudinary.service";
+import { NotificationService } from "../notifications/notification.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ValidateDTO } from "./dto/validate.dto";
 import { workers } from "./dto/workers.dto";
 
 const nextStationMap = {
@@ -16,12 +17,12 @@ function getNextStation(station: Station): Station | null {
 
 export class WorkerService {
   private prisma: PrismaService;
-  private cloudinaryService: CloudinaryService;
+  private notificationService: NotificationService;
   private outletService: OutletService;
 
   constructor() {
     this.prisma = new PrismaService();
-    this.cloudinaryService = new CloudinaryService();
+    this.notificationService = new NotificationService();
     this.outletService = new OutletService();
   }
 
@@ -86,13 +87,18 @@ export class WorkerService {
     const jobs = await this.prisma.orderWorkProcess.findMany({
       where: {
         outletId: worker.outletId,
-        status: "PENDING",
+        OR: [
+          { status: "PENDING" },
+          { status: "IN_PROCESS", workerId: worker.id },
+        ],
       },
       include: {
         order: {
           include: {
             customer: true,
-            orderItems: true,
+            orderItems: {
+              include: { laundryItem: { select: { name: true } } },
+            },
           },
         },
       },
@@ -104,6 +110,35 @@ export class WorkerService {
     return {
       message: "Pending jobs fetched successfully",
       data: jobs,
+    };
+  };
+
+  getJobDetail = async (workerId: string, jobId: string) => {
+    const worker = await this.prisma.worker.findUnique({
+      where: { workerId },
+    });
+    if (!worker) throw new ApiError("Worker not found", 404);
+
+    const job = await this.prisma.orderWorkProcess.findUnique({
+      where: { id: jobId },
+      include: {
+        order: {
+          include: {
+            customer: true,
+            orderItems: {
+              include: { laundryItem: { select: { name: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!job) throw new ApiError("Job not found", 404);
+    if (job.workerId !== worker.id) throw new ApiError("Not authorized", 403);
+
+    return {
+      message: "Job detail fetched successfully",
+      data: job,
     };
   };
 
@@ -144,54 +179,228 @@ export class WorkerService {
 
   takeJob = async (workerId: string, jobId: string) => {
     const worker = await this.prisma.worker.findUnique({
-      where: { id: workerId },
+      where: { workerId },
     });
 
     if (!worker) throw new ApiError("Worker not found", 404);
+    if (worker.isBypass)
+      throw new ApiError(
+        "You must resolve the bypass request before taking another job",
+        404
+      );
 
-    const job = await this.prisma.orderWorkProcess.findUnique({
-      where: { id: jobId },
+    let customerId: string | null = null;
+    let station: Station | null = null;
+
+    await this.prisma.$transaction(async (tx) => {
+      const hasBypass = await tx.orderWorkProcess.findFirst({
+        where: {
+          workerId: worker.id,
+          status: "BYPASS_REQUESTED",
+        },
+      });
+
+      if (hasBypass) {
+        throw new ApiError(
+          "You must resolve the bypass request before taking another job",
+          400
+        );
+      }
+
+      const job = await tx.orderWorkProcess.findUnique({
+        where: { id: jobId },
+        include: { order: true },
+      });
+
+      if (!job) throw new ApiError("Job not found", 404);
+      if (job.outletId !== worker.outletId)
+        throw new ApiError("Not authorized", 403);
+
+      const workerResult = await tx.worker.updateMany({
+        where: {
+          id: worker.id,
+          station: null,
+        },
+        data: {
+          station: job.station,
+        },
+      });
+
+      if (workerResult.count === 0) {
+        throw new ApiError("You have an ongoing task", 400);
+      }
+
+      const jobResult = await tx.orderWorkProcess.updateMany({
+        where: {
+          id: jobId,
+          status: "PENDING",
+        },
+        data: {
+          status: "IN_PROCESS",
+          workerId: worker.id,
+        },
+      });
+
+      if (jobResult.count === 0) {
+        throw new ApiError("Job already taken", 400);
+      }
+
+      await tx.order.update({
+        where: { id: job.orderId },
+        data: {
+          status: job.station,
+        },
+      });
+
+      customerId = job.order.customerId;
+      station = job.station;
     });
 
-    if (!job) throw new ApiError("Job not found", 404);
-    if (job.outletId !== worker.outletId)
-      throw new ApiError("Not authorized", 403);
-    if (job.status !== "PENDING") throw new ApiError("Job already taken", 400);
-
-    await this.prisma.orderWorkProcess.update({
-      where: { id: jobId },
-      data: {
-        status: "IN_PROCESS",
-        workerId,
-      },
-    });
+    if (station === "WASHING" && customerId) {
+      await this.notificationService.pushNotification({
+        title: "Order Update",
+        description: "Your laundry is being washed",
+        receiverId: customerId,
+        role: "CUSTOMER",
+      });
+    }
 
     return { message: "Job taken successfully" };
   };
 
-  validateItems = async (workerId: string, jobId: string, data: any) => {};
-  requestBypass = async (workerId: string, jobId: string, data: any) => {};
-
-  finishJob = async (workerId: string, jobId: string) => {
+  requestBypass = async (workerId: string, jobId: string, note: string) => {
     const worker = await this.prisma.worker.findUnique({
-      where: { id: workerId },
+      where: { workerId },
+      include: { worker: { select: { name: true } } },
     });
+
     if (!worker) throw new ApiError("Worker not found", 404);
+
+    let orderNumber = "";
+    let outletId = "";
+
+    await this.prisma.$transaction(async (tx) => {
+      const job = await tx.orderWorkProcess.findUnique({
+        where: { id: jobId },
+        include: {
+          order: {
+            include: {
+              outlet: {
+                select: { id: true, adminId: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!job) throw new ApiError("Job not found", 404);
+      if (job.workerId !== worker.id) throw new ApiError("Not authorized", 403);
+
+      if (job.status === "BYPASS_REQUESTED")
+        throw new ApiError("Bypass already requested", 400);
+
+      if (job.status === "COMPLETED")
+        throw new ApiError("Job already completed", 400);
+
+      await tx.notes.create({
+        data: {
+          orderId: job.order.id,
+          type: "BYPASS",
+          body: note,
+        },
+      });
+
+      await tx.orderWorkProcess.update({
+        where: { id: jobId },
+        data: { status: "BYPASS_REQUESTED" },
+      });
+
+      await tx.worker.update({
+        where: { id: worker.id },
+        data: { isBypass: true },
+      });
+
+      orderNumber = job.order.orderNumber;
+      outletId = job.order.outlet.id!;
+    });
+
+    await this.notificationService.pushNotification({
+      title: "Bypass Request",
+      description: `Order ${orderNumber} has a bypass request from ${worker.worker.name}`,
+      receiverId: outletId,
+      role: "OUTLET_ADMIN",
+    });
+
+    return { message: "Bypass request sent successfully" };
+  };
+
+  validateItems = async (
+    jobId: string,
+    data: ValidateDTO
+  ): Promise<boolean> => {
+    if (!data?.orderItems || data.orderItems.length === 0) {
+      throw new ApiError("Order items is required", 400);
+    }
 
     const job = await this.prisma.orderWorkProcess.findUnique({
       where: { id: jobId },
       include: {
-        order: { include: { payment: true } },
+        order: {
+          include: {
+            orderItems: true,
+          },
+        },
       },
     });
-    if (!job) throw new ApiError("Job not found", 404);
-    if (job.outletId !== worker.outletId)
-      throw new ApiError("Not authorized", 403);
 
-    if (job.status === "BYPASS_REQUESTED")
-      throw new ApiError("Waiting for admin approval", 400);
-    if (job.status !== "IN_PROCESS")
+    if (!job) throw new ApiError("Job not found", 404);
+
+    const referenceItems = job.order.orderItems;
+
+    const referenceMap = new Map<string, number>(
+      referenceItems.map((item) => [item.laundryItemId, item.quantity])
+    );
+
+    if (referenceMap.size !== data.orderItems.length) {
+      return false;
+    }
+
+    for (const item of data.orderItems) {
+      const refQty = referenceMap.get(item.id);
+
+      if (refQty === undefined) return false;
+      if (refQty !== item.qty) return false;
+    }
+
+    return true;
+  };
+
+  finishJob = async (workerId: string, jobId: string, data: ValidateDTO) => {
+    const worker = await this.prisma.worker.findUnique({
+      where: { workerId },
+    });
+
+    if (!worker) throw new ApiError("Worker not found", 404);
+
+    const job = await this.prisma.orderWorkProcess.findUnique({
+      where: { id: jobId },
+      include: { order: { select: { orderNumber: true, outletId: true } } },
+    });
+
+    if (!job) throw new ApiError("Job not found finish", 404);
+
+    if (job.status !== "IN_PROCESS") {
       throw new ApiError("Job is not in process", 400);
+    }
+
+    if (job.workerId !== worker.id) {
+      throw new ApiError("You are not assigned to this job", 403);
+    }
+
+    const isValid = await this.validateItems(jobId, data);
+    if (!isValid) {
+      throw new ApiError("Item quantity mismatch. Please request bypass.", 400);
+    }
 
     const nextStation = getNextStation(job.station);
 
@@ -201,6 +410,13 @@ export class WorkerService {
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
+        },
+      });
+
+      await tx.worker.update({
+        where: { id: worker.id },
+        data: {
+          station: null,
         },
       });
 
@@ -214,7 +430,6 @@ export class WorkerService {
 
         await tx.orderWorkProcess.create({
           data: {
-            workerId,
             orderId: job.orderId,
             outletId: job.outletId,
             station: nextStation,
@@ -222,16 +437,23 @@ export class WorkerService {
           },
         });
       } else {
-        const isPaid = job.order.payment?.status === "SUCCESS";
-
         await tx.order.update({
           where: { id: job.orderId },
           data: {
-            status: isPaid ? "READY_FOR_DELIVERY" : "WAITING_FOR_PAYMENT",
+            status: "WAITING_FOR_PAYMENT",
           },
         });
       }
     });
+
+    if (nextStation) {
+      await this.notificationService.pushNotificationBulk({
+        title: "New Task Available",
+        description: `${nextStation} task for Order #${job.order.orderNumber}.`,
+        outletId: job.order.outletId,
+        role: "WORKER",
+      });
+    }
 
     return { message: "Job completed successfully" };
   };

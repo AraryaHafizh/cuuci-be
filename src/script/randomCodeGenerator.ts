@@ -8,5 +8,3 @@ export function randomCodeGenerator(length = 6) {
     
 }
 
-console.log(randomCodeGenerator(12));
-
