@@ -22,7 +22,7 @@ export class App {
     this.configure();
     this.routes();
     this.handleError();
-    // initScheduler();
+    initScheduler();
   }
 
   private configure() {
