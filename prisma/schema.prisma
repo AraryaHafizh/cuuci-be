@@ -40,6 +40,7 @@ model User {
   outlets               Outlet[]
   customerNotifications CustomerNotification[]
   driverNotifications   DriverNotification[]
+  workerNotifications   WorkerNotification[]
 
   @@map("users")
 }
@@ -112,6 +113,7 @@ model Order {
   distance           Int                @default(0)
   orderItems         OrderItem[]
   payment            Payment?
+  notes              Notes[]            @relation("OrderNotes")
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   pickupTime         DateTime?
@@ -126,8 +128,8 @@ model Order {
 
 model OrderWorkProcess {
   id          String                 @id @default(cuid())
-  workerId    String
-  worker      Worker                 @relation(fields: [workerId], references: [id])
+  workerId    String?
+  worker      Worker?                @relation(fields: [workerId], references: [id])
   orderId     String
   order       Order                  @relation(fields: [orderId], references: [id])
   station     Station
@@ -142,12 +144,12 @@ model OrderWorkProcess {
   @@map("order_work_processes")
 }
 
-model Note {
-  id   String  @id @default(cuid())
-  type Notes
-  body String? @db.Text
-
-  @@map("notes")
+model Notes {
+  id      String   @id @default(cuid())
+  type    NoteType @default(INSTRUCTION)
+  body    String?  @db.Text
+  orderId String?
+  order   Order?   @relation("OrderNotes", fields: [orderId], references: [id])
 }
 
 model LaundryItem {
@@ -238,19 +240,18 @@ model Attendance {
 }
 
 model Worker {
-  id                  String               @id @default(cuid())
-  worker              User                 @relation(fields: [workerId], references: [id])
-  workerId            String               @unique
-  outlet              Outlet               @relation(fields: [outletId], references: [id])
-  outletId            String
-  station             Station?
-  startTime           DateTime?
-  endTime             DateTime?
-  shift               Shift
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  orderWorkProcesses  OrderWorkProcess[]
-  workerNotifications WorkerNotification[]
+  id                 String             @id @default(cuid())
+  worker             User               @relation(fields: [workerId], references: [id])
+  workerId           String             @unique
+  outlet             Outlet             @relation(fields: [outletId], references: [id])
+  outletId           String
+  station            Station?
+  startTime          DateTime?
+  endTime            DateTime?
+  shift              Shift
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  orderWorkProcesses OrderWorkProcess[]
 
   @@map("workers")
 }
@@ -317,8 +318,8 @@ model AdminNotification {
 
 model WorkerNotification {
   id             String        @id @default(cuid())
-  worker         Worker        @relation(fields: [workerId], references: [id])
-  workerId       String
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
   notification   Notification? @relation(fields: [notificationId], references: [id])
   notificationId String?
   isRead         Boolean       @default(false)
@@ -370,7 +371,7 @@ enum Role {
   SUPER_ADMIN
 }
 
-enum Notes {
+enum NoteType {
   COMPLAINT
   BYPASS
   INSTRUCTION

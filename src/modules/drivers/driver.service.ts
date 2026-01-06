@@ -132,32 +132,50 @@ export class DriverService {
   };
 
   takeOrder = async (driverId: string, orderId: string) => {
-    const driver = await this.prisma.driver.findFirst({ where: { driverId } });
-    const request = await this.prisma.pickupOrder.findFirst({
-      where: { orderId },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const driver = await tx.driver.findFirst({ where: { driverId } });
 
-    if (!request) throw new ApiError("Request not found", 404);
-    if (!driver) throw new ApiError("Driver not found", 404);
-    if (driver.outletId !== request.outletId) {
-      throw new ApiError("Not authorized", 403);
-    }
-    if (request.status !== "LOOKING_FOR_DRIVER") {
-      throw new ApiError("Invalid request", 400);
-    }
+      if (!driver) throw new ApiError("Driver not found", 404);
 
-    await this.prisma.$transaction(async (tx) => {
+      if (driver.currentPickupOrderId || driver.currentDeliveryOrderId) {
+        throw new ApiError("You have an ongoing order", 409);
+      }
+
+      const request = await tx.pickupOrder.findFirst({
+        where: {
+          orderId,
+          status: "LOOKING_FOR_DRIVER",
+          outletId: driver.outletId,
+        },
+      });
+
+      if (!request) throw new ApiError("Request already taken or invalid", 409);
+
       await tx.pickupOrder.update({
         where: { id: request.id },
-        data: { status: "WAITING_FOR_PICKUP", driverId: driver.id },
+        data: {
+          status: "WAITING_FOR_PICKUP",
+          driverId: driver.id,
+        },
       });
+
       await tx.order.update({
         where: { id: request.orderId! },
-        data: { status: "WAITING_FOR_PICKUP", driverId: driver.id },
+        data: {
+          status: "WAITING_FOR_PICKUP",
+          driverId: driver.id,
+        },
       });
-    });
 
-    return { message: "Pickup assigned, driver is on the way." };
+      await tx.driver.update({
+        where: { id: driver.id },
+        data: { currentPickupOrderId: request.id },
+      });
+
+      return {
+        message: "Pickup assigned. Head to customer location.",
+      };
+    });
   };
 
   confirmOrder = async (
@@ -194,7 +212,7 @@ export class DriverService {
       });
       await tx.order.update({
         where: { id: request.orderId! },
-        data: { status: "LAUNDRY_ON_THE_WAY" },
+        data: { status: "LAUNDRY_ON_THE_WAY", pickupTime: new Date() },
       });
     });
 
@@ -225,6 +243,10 @@ export class DriverService {
       await tx.order.update({
         where: { id: request.orderId! },
         data: { status: "ARRIVED_AT_OUTLET" },
+      });
+      await tx.driver.update({
+        where: { id: driver.id },
+        data: { currentPickupOrderId: null },
       });
       const notification = await tx.notification.create({
         data: {

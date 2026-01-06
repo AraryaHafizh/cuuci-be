@@ -13,6 +13,8 @@ import { WorkerRouter } from "./modules/workers/worker.router";
 import { CustomerRouter } from "./modules/customers/customer.router";
 import { NotificationRouter } from "./modules/notifications/notification.router";
 import { Addressrouter } from "./modules/addresses/address.router";
+import { AdminRouter } from "./modules/admin/admin.router";
+import { LaundryRouter } from "./modules/laundry/laundry.router";
 
 export class App {
   app: Express;
@@ -41,6 +43,8 @@ export class App {
     const workerRouter = new WorkerRouter();
     const customerRouter = new CustomerRouter();
     const notificationRouter = new NotificationRouter();
+    const adminRouter = new AdminRouter();
+    const laundryRouter = new LaundryRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/addresses", addressRouter.getRouter());
@@ -52,6 +56,8 @@ export class App {
     this.app.use("/workers", workerRouter.getRouter());
     this.app.use("/customers", customerRouter.getRouter());
     this.app.use("/notifications", notificationRouter.getRouter());
+    this.app.use("/admins", adminRouter.getRouter());
+    this.app.use("/laundries", laundryRouter.getRouter());
   }
 
   private handleError() {
