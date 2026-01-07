@@ -1,7 +1,8 @@
+import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
-import { orders } from "./dto/order.dto";
+import { Orders } from "./dto/order.dto";
 
 export class AdminService {
   private prisma: PrismaService;
@@ -10,11 +11,35 @@ export class AdminService {
     this.prisma = new PrismaService();
   }
 
-  getOrders = async (adminId: string, query: orders) => {
-    const { orderId, status } = query;
+  getOrders = async (adminId: string, query: Orders) => {
+    const {
+      orderId,
+      status,
+      page,
+      search,
+      startDate,
+      endDate,
+      limit,
+      isHistory,
+    } = query;
+    const whereClause: Prisma.OrderWhereInput = {};
     const outlet = await this.prisma.outlet.findFirst({ where: { adminId } });
 
     if (!outlet) throw new ApiError("No outlet found", 404);
+    if (isHistory) {
+      whereClause.status = { in: ["COMPLETED", "CANCELLED"] };
+    } else {
+      whereClause.status = { notIn: ["COMPLETED", "CANCELLED"] };
+    }
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
 
     const outletId = outlet.id;
     const where: any = { outletId };
@@ -22,12 +47,29 @@ export class AdminService {
     if (orderId) where.orderNumber = orderId;
     if (status) where.status = status;
 
-    const orders = await this.prisma.order.findMany({ where });
+    const skip = (page - 1) * limit;
+    const orders = await this.prisma.order.findMany({
+      skip,
+      take: limit,
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
     if (!orders) throw new ApiError("No orders found", 404);
+    const total = await this.prisma.order.count({
+      where: whereClause,
+    });
 
     return {
       message: "Orders fetched successfully",
       data: orders,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 

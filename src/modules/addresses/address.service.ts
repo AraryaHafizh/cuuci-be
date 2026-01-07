@@ -1,7 +1,9 @@
+import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
 import { createDTO } from "./dto/create.dto";
 import { updateDTO } from "./dto/edit.dto";
+import { GetAddressDTO } from "./dto/get-order.dto";
 
 export class AddressService {
   private prisma: PrismaService;
@@ -24,18 +26,51 @@ export class AddressService {
     return address;
   }
 
-  getAddresses = async (userId: string) => {
+  getAddresses = async (userId: string, query: GetAddressDTO) => {
+    const { page, search, startDate, endDate, limit } = query;
+    const skip = (page - 1) * limit;
+    const whereClause: Prisma.AddressWhereInput = {};
     const addresses = await this.prisma.address.findMany({
+      skip,
+      take: limit,
       where: {
         userId,
         isDeleted: false,
       },
       orderBy: { createdAt: "asc" },
     });
+    const total = await this.prisma.address.count({
+      where: {
+        userId,
+        isDeleted: false,
+      },
+    });
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
 
+    if (search) {
+      whereClause.address = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
+    
     return {
       message: "Address fetched successfully",
       data: addresses,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 

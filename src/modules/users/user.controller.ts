@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { UserUpdateService } from "./user.service";
 import { plainToInstance } from "class-transformer";
-import { users } from "./dto/users.dto";
+import { Users } from "./dto/users.dto";
 
 export class UserUpdateController {
   private userUpdateservice: UserUpdateService;
@@ -11,7 +11,7 @@ export class UserUpdateController {
   }
 
   getUsers = async (req: Request, res: Response) => {
-    const query = plainToInstance(users, req.query);
+    const query = plainToInstance(Users, req.query);
     const result = await this.userUpdateservice.getUsers(query);
     res.status(200).send(result);
   };

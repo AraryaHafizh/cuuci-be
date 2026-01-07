@@ -1,11 +1,12 @@
 // src/modules/attendance/dto/attendance.dto.ts
 import { IsOptional, IsString, IsDateString } from "class-validator";
+import { PaginationQueryParams } from "../../pagination/dto/pagination.dto";
 
 export class CheckInDTO {}
 
 export class CheckOutDTO {}
 
-export class GetAttendanceLogDTO {
+export class GetAttendanceLogDTO extends PaginationQueryParams {
   @IsOptional()
   @IsDateString()
   from?: string;

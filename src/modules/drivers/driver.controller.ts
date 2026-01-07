@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { DriverService } from "./driver.service";
-import { drivers } from "./dto/drivers.dto";
 import { ApiError } from "../../utils/api-error";
+import { Drivers } from "./dto/drivers.dto";
 
 export class DriverContorller {
   private driverService: DriverService;
@@ -12,7 +12,7 @@ export class DriverContorller {
   }
 
   getDrivers = async (req: Request, res: Response) => {
-    const query = plainToInstance(drivers, req.query);
+    const query = plainToInstance(Drivers, req.query);
     const result = await this.driverService.getDrivers(query);
     res.status(200).send(result);
   };
