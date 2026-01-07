@@ -39,9 +39,7 @@ export class AdminService {
     const outlet = await this.prisma.outlet.findFirst({ where: { adminId } });
 
     if (!outlet) throw new ApiError("No outlet found", 404);
-    if (isHistory) {
-      whereClause.status = { in: ["COMPLETED", "CANCELLED"] };
-    } else {
+    if (!isHistory) {
       whereClause.status = { notIn: ["COMPLETED", "CANCELLED"] };
     }
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -53,12 +51,15 @@ export class AdminService {
         lte: endDate ? new Date(endDate) : undefined,
       };
     }
+    if (search) {
+      whereClause.orderNumber = { contains: search, mode: "insensitive" };
+    }
+    if (status) whereClause.status = status;
 
     const outletId = outlet.id;
     const where: any = { outletId };
 
     if (orderId) where.orderNumber = orderId;
-    if (status) where.status = status;
 
     const skip = (page - 1) * limit;
     const orders = await this.prisma.order.findMany({
@@ -67,6 +68,9 @@ export class AdminService {
       where: whereClause,
       orderBy: {
         createdAt: "desc",
+      },
+      include: {
+        customer: { select: { name: true } },
       },
     });
     if (!orders) throw new ApiError("No orders found", 404);

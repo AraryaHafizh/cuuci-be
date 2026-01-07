@@ -73,7 +73,7 @@ export class UserUpdateService {
       })
     );
     
-    const total = await this.prisma.order.count({
+    const total = await this.prisma.user.count({
       where,
     });
 
