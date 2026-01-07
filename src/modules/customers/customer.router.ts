@@ -4,7 +4,7 @@ import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { UploaderMiddleware } from "../../middlewares/uploader.middleware";
 import { CustomerContorller } from "./customer.controller";
 import { validateBody } from "../../middlewares/validation.middleware";
-import { request } from "./dto/request.dto";
+import { Request } from "./dto/request.dto";
 
 export class CustomerRouter {
   private router: Router;
@@ -67,7 +67,7 @@ export class CustomerRouter {
       "/request",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
-      validateBody(request),
+      validateBody(Request),
       this.customerController.requestPickup
     );
   };

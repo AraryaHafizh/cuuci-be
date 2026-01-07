@@ -7,6 +7,3 @@ export function randomCodeGenerator(length = 6) {
     .join("");
     
 }
-
-console.log(randomCodeGenerator(12));
-

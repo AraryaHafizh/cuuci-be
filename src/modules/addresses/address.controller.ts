@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { AddressService } from "./address.service";
 import { updateDTO } from "./dto/edit.dto";
 import { createDTO } from "./dto/create.dto";
+import { plainToInstance } from "class-transformer";
+import { GetAddressDTO } from "./dto/get-order.dto";
 
 export class AddressController {
   private addressService: AddressService;
@@ -12,7 +14,8 @@ export class AddressController {
 
   getAddresses = async (req: Request, res: Response) => {
     const id = String(res.locals.user.id);
-    const result = await this.addressService.getAddresses(id);
+    const query = plainToInstance(GetAddressDTO, req.query);
+    const result = await this.addressService.getAddresses(id, query);
     res.status(200).send(result);
   };
 
