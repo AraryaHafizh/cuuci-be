@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { WorkerService } from "./worker.service";
 import { workers } from "./dto/workers.dto";
+import { GetJobsDTO } from "./dto/get-jobs.dto";
 
 export class WorkerContorller {
   private workerService: WorkerService;
@@ -24,13 +25,15 @@ export class WorkerContorller {
 
   getJobs = async (req: Request, res: Response) => {
     const workerId = String(res.locals.user.id);
-    const result = await this.workerService.getJobs(workerId);
+    const query = plainToInstance(GetJobsDTO, req.query);
+    const result = await this.workerService.getJobs(workerId, query);
     res.status(200).send(result);
   };
 
   getJobsHistory = async (req: Request, res: Response) => {
     const workerId = String(res.locals.user.id);
-    const result = await this.workerService.getJobsHistory(workerId);
+    const query = plainToInstance(GetJobsDTO, req.query);
+    const result = await this.workerService.getJobsHistory(workerId, query);
     res.status(200).send(result);
   };
 

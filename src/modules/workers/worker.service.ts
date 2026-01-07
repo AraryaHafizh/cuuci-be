@@ -1,8 +1,10 @@
+import { Prisma } from "../../generated/prisma/client";
 import { Station } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { GetJobsDTO } from "./dto/get-jobs.dto";
 import { workers } from "./dto/workers.dto";
 
 const nextStationMap = {
@@ -48,7 +50,7 @@ export class WorkerService {
       })
     );
 
-    return { messae: "Workers fetched suceessfully", data: filtered };
+    return { message: "Workers fetched suceessfully", data: filtered };
   };
 
   getWorker = async (workerId: string) => {
@@ -76,14 +78,18 @@ export class WorkerService {
     };
   };
 
-  getJobs = async (workerId: string) => {
+  getJobs = async (workerId: string, query: GetJobsDTO) => {
+    const { page, limit } = query;
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
 
     if (!worker) throw new Error("Worker not found");
 
+    const skip = (page - 1) * limit;
     const jobs = await this.prisma.orderWorkProcess.findMany({
+      skip,
+      take: limit,
       where: {
         outletId: worker.outletId,
         status: "PENDING",
@@ -100,36 +106,81 @@ export class WorkerService {
         createdAt: "asc",
       },
     });
+    const total = await this.prisma.orderWorkProcess.count({
+      where: {
+        outletId: worker.outletId,
+        status: "PENDING",
+      },
+    });
 
     return {
       message: "Pending jobs fetched successfully",
       data: jobs,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 
-  getJobsHistory = async (workerId: string) => {
+  getJobsHistory = async (workerId: string, query: GetJobsDTO) => {
+    const { page, search, startDate, endDate, limit, isHistory } = query;
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
 
     if (!worker) throw new ApiError("Worker not found", 404);
 
+    const whereClause: Prisma.OrderWorkProcessWhereInput = {
+      workerId,
+      outletId: worker.outletId,
+      status: "COMPLETED",
+    };
+
+    if (startDate || endDate) {
+      whereClause.completedAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { order: { orderNumber: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    const skip = (page - 1) * limit;
     const history = await this.prisma.orderWorkProcess.findMany({
-      where: { workerId, outletId: worker.outletId, status: "COMPLETED" },
+      skip,
+      take: limit,
+      where: whereClause,
       include: {
         order: {
           select: {
             id: true,
+            orderNumber: true,
             status: true,
           },
         },
       },
       orderBy: { completedAt: "desc" },
     });
+    const total = await this.prisma.orderWorkProcess.count({
+      where: whereClause,
+    });
 
     return {
       message: "Jobs history fetched successfully",
       data: history,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 
