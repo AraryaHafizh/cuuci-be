@@ -384,7 +384,9 @@ export class WorkerService {
 
     const job = await this.prisma.orderWorkProcess.findUnique({
       where: { id: jobId },
-      include: { order: { select: { orderNumber: true, outletId: true } } },
+      include: {
+        order: { select: { orderNumber: true, outletId: true, payment: true } },
+      },
     });
 
     if (!job) throw new ApiError("Job not found finish", 404);
@@ -437,11 +439,13 @@ export class WorkerService {
           },
         });
       } else {
+        const finalStatus = job.order.payment
+          ? "READY_FOR_DELIVERY"
+          : "WAITING_FOR_PAYMENT";
+
         await tx.order.update({
           where: { id: job.orderId },
-          data: {
-            status: "WAITING_FOR_PAYMENT",
-          },
+          data: { status: finalStatus },
         });
       }
     });

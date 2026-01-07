@@ -34,10 +34,10 @@ export class CustomerRouter {
       this.customerController.getOrders
     );
     this.router.get(
-      "/orders",
+      "/order/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
-      this.customerController.getOrders
+      this.customerController.getOrder
     );
     this.router.get(
       "/history",

@@ -90,6 +90,10 @@ export class UserUpdateService {
       updateData.name = body.name;
     }
 
+    if (body.phoneNumber) {
+      updateData.phoneNumber = body.phoneNumber;
+    }
+
     if (profilePictureUrl) {
       if (user.profilePictureUrl) {
         await this.cloudinaryService.remove(user.profilePictureUrl);

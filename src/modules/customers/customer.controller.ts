@@ -29,6 +29,13 @@ export class CustomerContorller {
     res.status(200).send(result);
   };
 
+  getOrder = async (req: Request, res: Response) => {
+    const customerId = String(res.locals.user.id);
+    const orderId = req.params.id;
+    const result = await this.customerService.getOrder(customerId, orderId);
+    res.status(200).send(result);
+  };
+
   getOrderHistory = async (req: Request, res: Response) => {
     const query = plainToInstance(History, req.query);
     const customerId = String(res.locals.user.id);
