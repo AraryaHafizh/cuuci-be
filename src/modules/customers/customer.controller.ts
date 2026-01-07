@@ -1,8 +1,8 @@
 import { plainToInstance } from "class-transformer";
 import { Request, Response } from "express";
 import { CustomerService } from "./customer.service";
-import { customers } from "./dto/customer.dto";
 import { History } from "./dto/history.dto";
+import { Customers } from "./dto/customer.dto";
 
 export class CustomerContorller {
   private customerService: CustomerService;
@@ -12,7 +12,7 @@ export class CustomerContorller {
   }
 
   getCustomers = async (req: Request, res: Response) => {
-    const query = plainToInstance(customers, req.query);
+    const query = plainToInstance(Customers, req.query);
     const result = await this.customerService.getCustomers(query);
     res.status(200).send(result);
   };

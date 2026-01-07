@@ -5,7 +5,7 @@ import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserUpdatePasswordDTO } from "./dto/user-update-password.dto";
 import { UserUpdateDTO } from "./dto/user-update.dto";
-import { users } from "./dto/users.dto";
+import { Users } from "./dto/users.dto";
 
 export class UserUpdateService {
   private prisma: PrismaService;
@@ -18,8 +18,8 @@ export class UserUpdateService {
     this.outletService = new OutletService();
   }
 
-  getUsers = async (query: users) => {
-    const { search, outletId, role } = query;
+  getUsers = async (query: Users) => {
+    const { search, outletId, role, page, startDate, endDate, limit } = query;
 
     const where: any = {
       role: { not: "SUPER_ADMIN" },
@@ -32,6 +32,16 @@ export class UserUpdateService {
     }
     if (role) where.role = role;
 
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      where.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -41,8 +51,15 @@ export class UserUpdateService {
       ];
     }
 
-    const users = await this.prisma.user.findMany({ where });
-
+    const skip = (page - 1) * limit;
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
     const filtered = await Promise.all(
       users.map(async (user) => {
         let outletName = "";
@@ -55,10 +72,20 @@ export class UserUpdateService {
         return { ...rest, outletName };
       })
     );
+    
+    const total = await this.prisma.order.count({
+      where,
+    });
 
     return {
       message: "Users fetched successfully",
       data: filtered,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 

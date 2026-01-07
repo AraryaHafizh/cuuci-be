@@ -1,5 +1,7 @@
+import { plainToInstance } from "class-transformer";
 import { AdminService } from "./admin.service";
 import { CreateDTO } from "./dto/create.dto";
+import { Orders } from "./dto/order.dto";
 
 export class AdminContorller {
   private adminService: AdminService;
@@ -9,7 +11,7 @@ export class AdminContorller {
   }
   getOrders = async (req: any, res: any) => {
     const adminId = String(res.locals.user.id);
-    const query = req.query;
+    const query = plainToInstance(Orders, req.query);
     const orders = await this.adminService.getOrders(adminId, query);
     res.status(200).json(orders);
   };

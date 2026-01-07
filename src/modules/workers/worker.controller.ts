@@ -25,7 +25,15 @@ export class WorkerContorller {
 
   getJobs = async (req: Request, res: Response) => {
     const workerId = String(res.locals.user.id);
-    const result = await this.workerService.getJobs(workerId);
+    const query = plainToInstance(GetJobsDTO, req.query);
+    const result = await this.workerService.getJobs(workerId, query);
+    res.status(200).send(result);
+  };
+
+  getJobDetail = async (req: Request, res: Response) => {
+    const workerId = String(res.locals.user.id);
+    const jobId = req.params.id;
+    const result = await this.workerService.getJobDetail(workerId, jobId);
     res.status(200).send(result);
   };
 
@@ -38,7 +46,8 @@ export class WorkerContorller {
 
   getJobsHistory = async (req: Request, res: Response) => {
     const workerId = String(res.locals.user.id);
-    const result = await this.workerService.getJobsHistory(workerId);
+    const query = plainToInstance(GetJobsDTO, req.query);
+    const result = await this.workerService.getJobsHistory(workerId, query);
     res.status(200).send(result);
   };
 

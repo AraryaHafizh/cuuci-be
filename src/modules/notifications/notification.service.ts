@@ -1,6 +1,8 @@
+import { Prisma } from "../../generated/prisma/client";
 import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
+import { GetNotificationsDTO } from "./dto/get-notification.dto";
 import { PushBulkDTO } from "./dto/push-bulk.dto";
 import { PushDTO } from "./dto/push.dto";
 
@@ -11,33 +13,34 @@ export class NotificationService {
     this.prisma = new PrismaService();
   }
 
-  getNotifications = async (userId: string, role: Role) => {
-    const include: any = {};
-    const where: any = {};
+  getNotifications = async (userId: string, role: Role, query: GetNotificationsDTO) => {
+    const { page, startDate, endDate, limit } = query;
+    const whereClause: Prisma.NotificationWhereInput = {};
+    const includeClause: Prisma.NotificationInclude = {};
 
     let relationKey = "";
 
     switch (role) {
       case "CUSTOMER":
         relationKey = "userNotifications";
-        include.customerNotifications = true;
-        where.customerNotifications = {
+        includeClause.customerNotifications = true;
+        whereClause.customerNotifications = {
           some: { userId },
         };
         break;
 
       case "WORKER":
         relationKey = "workerNotifications";
-        include.workerNotifications = true;
-        where.workerNotifications = {
+        includeClause.workerNotifications = true;
+        whereClause.workerNotifications = {
           some: { userId },
         };
         break;
 
       case "DRIVER":
         relationKey = "driverNotifications";
-        include.driverNotifications = true;
-        where.driverNotifications = {
+        includeClause.driverNotifications = true;
+        whereClause.driverNotifications = {
           some: { userId },
         };
         break;
@@ -47,16 +50,16 @@ export class NotificationService {
           where: { adminId: userId },
         });
         relationKey = "adminNotifications";
-        include.adminNotifications = true;
-        where.adminNotifications = {
+        includeClause.adminNotifications = true;
+        whereClause.adminNotifications = {
           some: { outletId: outlet!.id },
         };
         break;
     }
 
     const notifications = await this.prisma.notification.findMany({
-      where,
-      include,
+      where: whereClause,
+      include: includeClause,
       orderBy: { createdAt: "desc" },
     });
 
@@ -67,13 +70,22 @@ export class NotificationService {
     }));
 
     const isRead = notifications.every((n) =>
-      n[relationKey].every((rel: any) => rel.isRead === true)
+      (n as any)[relationKey].every((rel: any) => rel.isRead === true)
     );
+    const total = await this.prisma.notification.count({
+      where: whereClause,
+    });
 
     return {
       message: "notifications fetched successfully",
-      data: filteredNotifications,
       isRead,
+      data: filteredNotifications,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 

@@ -1,6 +1,7 @@
+import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
-import { customers } from "./dto/customer.dto";
+import { Customers } from "./dto/customer.dto";
 import { History } from "./dto/history.dto";
 import { buildOrderLog } from "./helper";
 
@@ -11,18 +12,55 @@ export class CustomerService {
     this.prisma = new PrismaService();
   }
 
-  getCustomers = async (query: customers) => {
-    const { id, name } = query;
+  getCustomers = async (query: Customers) => {
+    const { id, name, page, search, startDate, endDate, limit } = query;
+    const whereClause: Prisma.UserWhereInput = {};
 
     let where: any = { role: "CUSTOMER" };
 
     if (id) where.id = id;
     if (name) where.name = { contains: name, mode: "insensitive" };
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
+    if (search) {
+      whereClause.email = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
 
-    const customers = await this.prisma.user.findMany({ where });
+    const skip = (page - 1) * limit;
+
+    const customers = await this.prisma.user.findMany({
+      skip,
+      take: limit,
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    const total = await this.prisma.user.count({
+      where: whereClause,
+    });
     const data = customers.map(({ password, ...rest }) => rest);
 
-    return { messae: "Customers fetched suceessfully", data: data };
+    return {
+      message: "Customers fetched suceessfully",
+      data: data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   };
 
   getCustomer = async (customerId: string) => {

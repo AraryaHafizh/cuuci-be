@@ -1,8 +1,9 @@
+import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { drivers } from "./dto/drivers.dto";
+import { Drivers } from "./dto/drivers.dto";
 
 export class DriverService {
   private prisma: PrismaService;
@@ -15,16 +16,34 @@ export class DriverService {
     this.outletService = new OutletService();
   }
 
-  getDrivers = async (query: drivers) => {
-    const { id, outletId, name } = query;
+  getDrivers = async (query: Drivers) => {
+    const { id, outletId, page, startDate, endDate, limit } = query;
+    const whereClause: Prisma.DriverWhereInput = {};
 
-    let where: any = { role: "DRIVER" };
+    if (id) whereClause.id = id;
+    if (outletId) whereClause.outletId = outletId;
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      throw new ApiError("Invalid date range", 400);
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
 
-    if (id) where.id = id;
-    if (outletId) where.outletId = outletId;
-    if (name) where.name = { contains: name, mode: "insensitive" };
-
-    const drivers = await this.prisma.driver.findMany({ where });
+    const skip = (page - 1) * limit;
+    const drivers = await this.prisma.driver.findMany({
+      skip,
+      take: limit,
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    const total = await this.prisma.driver.count({
+      where: whereClause,
+    });
     const filtered = await Promise.all(
       drivers.map(async (driver) => {
         let outletName = "";
@@ -34,6 +53,13 @@ export class DriverService {
         return {
           ...driver,
           outletName,
+          data: drivers,
+          meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
         };
       })
     );

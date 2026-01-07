@@ -6,7 +6,7 @@ import {
   IsString,
 } from "class-validator";
 
-export class request {
+export class Request {
   @IsString()
   @IsNotEmpty()
   addressId!: string;

@@ -59,11 +59,11 @@ export class OrderRouter {
       validateBody(PickupOrderDTO),
       this.pickupController.createPickupOrder
     );
-    this.router.get(
-      "/order",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.orderController.getOrders
-    );
+    // this.router.get(
+    //   "/order",
+    //   this.jwtMiddleware.verifyToken(JWT_SECRET!),
+    //   this.orderController.getOrders
+    // );
   };
 
   getRouter = () => {

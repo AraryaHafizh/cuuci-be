@@ -1,7 +1,8 @@
-import { IsEnum, IsOptional, IsString } from "class-validator";
+import { IsDate, IsEnum, IsOptional, IsString } from "class-validator";
 import { Role } from "../../../generated/prisma/enums";
+import { PaginationQueryParams } from "../../pagination/dto/pagination.dto";
 
-export class users {
+export class Users extends PaginationQueryParams {
   @IsOptional()
   @IsString()
   search?: string;
@@ -13,4 +14,12 @@ export class users {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @IsOptional()
+  @IsDate()
+  startDate?: Date;
+
+  @IsOptional()
+  @IsDate()
+  endDate?: Date;
 }
