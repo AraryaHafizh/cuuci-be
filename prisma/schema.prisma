@@ -221,6 +221,8 @@ model Payment {
   method        String
   status        PaymentStatus
   paidAt        DateTime?
+  externalId    String?       // Xendit invoice ID
+  expiresAt     DateTime?     // Payment expiry time
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -409,7 +411,8 @@ enum OrderStatus {
 enum PaymentStatus {
   PENDING
   SUCCESS
-  CANCELLED
+  FAILED
+  EXPIRED
 }
 
 enum Provider {
