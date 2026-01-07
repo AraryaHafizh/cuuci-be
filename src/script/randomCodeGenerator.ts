@@ -7,3 +7,4 @@ export function randomCodeGenerator(length = 6) {
     .join("");
     
 }
+

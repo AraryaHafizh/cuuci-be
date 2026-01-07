@@ -3,6 +3,8 @@ import { JWT_SECRET } from "../../config/env";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { UploaderMiddleware } from "../../middlewares/uploader.middleware";
 import { WorkerContorller } from "./worker.controller";
+import { validateBody } from "../../middlewares/validation.middleware";
+import { ValidateDTO } from "./dto/validate.dto";
 
 export class WorkerRouter {
   private router: Router;
@@ -30,6 +32,31 @@ export class WorkerRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["WORKER"]),
       this.workerController.getJobs
+    );
+    this.router.post(
+      "/jobs/take/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["WORKER"]),
+      this.workerController.takeJob
+    );
+    this.router.post(
+      "/jobs/bypass/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["WORKER"]),
+      this.workerController.requestBypass
+    );
+    this.router.post(
+      "/jobs/finish/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["WORKER"]),
+      validateBody(ValidateDTO),
+      this.workerController.finishJob
+    );
+    this.router.get(
+      "/jobs/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["WORKER"]),
+      this.workerController.getJobDetail
     );
     this.router.get(
       "/history",
