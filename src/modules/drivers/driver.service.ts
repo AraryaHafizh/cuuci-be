@@ -1,4 +1,5 @@
 import { Prisma } from "../../generated/prisma/client";
+import { randomCodeGenerator } from "../../script/randomCodeGenerator";
 import { ApiError } from "../../utils/api-error";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { OutletService } from "../outlets/outlet.service";
@@ -97,9 +98,12 @@ export class DriverService {
       where: { driverId },
     });
 
-    const requests = await this.prisma.pickupOrder.findMany({
-      where: { status: "LOOKING_FOR_DRIVER", outletId: outlet?.outletId },
-      include: { address: true, customer: true, order: true },
+    const requests = await this.prisma.order.findMany({
+      where: {
+        status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
+        outletId: outlet?.outletId,
+      },
+      include: { address: true, customer: true, outlet: true },
     });
 
     return {
@@ -121,10 +125,10 @@ export class DriverService {
     };
   };
 
-  getRequest = async (orderId: string) => {
-    const request = await this.prisma.pickupOrder.findFirst({
-      where: { orderId },
-      include: { address: true, customer: true, order: true, outlet: true },
+  getRequest = async (id: string) => {
+    const request = await this.prisma.order.findUnique({
+      where: { id },
+      include: { address: true, customer: true, outlet: true },
     });
 
     return {
@@ -137,7 +141,7 @@ export class DriverService {
     const driver = await this.prisma.driver.findUnique({
       where: { driverId },
     });
-    const request = await this.prisma.pickupOrder.findFirst({
+    const request = await this.prisma.order.findFirst({
       where: {
         status: {
           in: [
@@ -148,7 +152,7 @@ export class DriverService {
         },
         driverId: driver!.id,
       },
-      include: { address: true, customer: true, order: true, outlet: true },
+      include: { address: true, customer: true, outlet: true },
     });
 
     return {
@@ -160,46 +164,81 @@ export class DriverService {
   takeOrder = async (driverId: string, orderId: string) => {
     return this.prisma.$transaction(async (tx) => {
       const driver = await tx.driver.findFirst({ where: { driverId } });
-
       if (!driver) throw new ApiError("Driver not found", 404);
 
       if (driver.currentPickupOrderId || driver.currentDeliveryOrderId) {
         throw new ApiError("You have an ongoing order", 409);
       }
 
-      const request = await tx.pickupOrder.findFirst({
+      const order = await tx.order.findFirst({
         where: {
-          orderId,
-          status: "LOOKING_FOR_DRIVER",
+          id: orderId,
           outletId: driver.outletId,
+          status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
         },
       });
 
-      if (!request) throw new ApiError("Request already taken or invalid", 409);
+      if (!order) throw new ApiError("Order already taken or invalid", 409);
 
-      await tx.pickupOrder.update({
-        where: { id: request.id },
+      if (order.status === "LOOKING_FOR_DRIVER") {
+        const pickup = await tx.pickupOrder.findFirst({
+          where: { orderId },
+        });
+
+        if (!pickup) {
+          throw new ApiError("Pickup order not found", 404);
+        }
+
+        await tx.pickupOrder.update({
+          where: { id: pickup.id },
+          data: {
+            status: "WAITING_FOR_PICKUP",
+            driverId: driver.id,
+          },
+        });
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: "WAITING_FOR_PICKUP",
+            driverId: driver.id,
+          },
+        });
+
+        await tx.driver.update({
+          where: { id: driver.id },
+          data: { currentPickupOrderId: orderId },
+        });
+
+        return {
+          message: "Pickup assigned. Head to customer location.",
+        };
+      }
+
+      const delivery = await tx.deliveryOrder.create({
         data: {
-          status: "WAITING_FOR_PICKUP",
+          orderId,
           driverId: driver.id,
+          deliveryNumber: randomCodeGenerator(),
+          status: "DELIVERY_ON_THE_WAY",
         },
       });
 
       await tx.order.update({
-        where: { id: request.orderId! },
+        where: { id: orderId },
         data: {
-          status: "WAITING_FOR_PICKUP",
+          status: "DELIVERY_ON_THE_WAY",
           driverId: driver.id,
         },
       });
 
       await tx.driver.update({
         where: { id: driver.id },
-        data: { currentPickupOrderId: request.id },
+        data: { currentDeliveryOrderId: delivery.id },
       });
 
       return {
-        message: "Pickup assigned. Head to customer location.",
+        message: "Delivery assigned. Head to outlet location.",
       };
     });
   };
@@ -247,49 +286,98 @@ export class DriverService {
 
   finishOrder = async (driverId: string, orderId: string) => {
     const driver = await this.prisma.driver.findFirst({ where: { driverId } });
-    const request = await this.prisma.pickupOrder.findFirst({
+    if (!driver) throw new ApiError("Driver not found", 404);
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId },
+    });
+
+    if (!order) throw new ApiError("Order not found", 404);
+    if (driver.outletId !== order.outletId) {
+      throw new ApiError("Not authorized", 403);
+    }
+
+    if (order.status === "LAUNDRY_ON_THE_WAY") {
+      const pickup = await this.prisma.pickupOrder.findFirst({
+        where: { orderId },
+        include: { order: true },
+      });
+      if (!pickup) throw new ApiError("Pickup order not found", 404);
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.pickupOrder.update({
+          where: { id: pickup.id },
+          data: { status: "ARRIVED_AT_OUTLET" },
+        });
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "ARRIVED_AT_OUTLET" },
+        });
+
+        await tx.driver.update({
+          where: { id: driver.id },
+          data: { currentPickupOrderId: null },
+        });
+
+        const notification = await tx.notification.create({
+          data: {
+            title: "Order arrived at outlet",
+            description: `Order ${order.orderNumber} arrived at outlet`,
+          },
+        });
+
+        await tx.adminNotification.create({
+          data: {
+            outletId: driver.outletId,
+            notificationId: notification.id,
+            isRead: false,
+          },
+        });
+      });
+
+      return { message: "Order successfully delivered to outlet." };
+    }
+
+    const delivery = await this.prisma.deliveryOrder.findFirst({
       where: { orderId },
       include: { order: true },
     });
-
-    if (!request) throw new ApiError("Request not found", 404);
-    if (!driver) throw new ApiError("Driver not found", 404);
-    if (driver.outletId !== request.outletId) {
-      throw new ApiError("Not authorized", 403);
-    }
-    if (request.status !== "LAUNDRY_ON_THE_WAY") {
-      throw new ApiError("Invalid request", 400);
-    }
+    if (!delivery) throw new ApiError("Delivery order not found", 404);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.pickupOrder.update({
-        where: { id: request.id },
-        data: { status: "ARRIVED_AT_OUTLET" },
+      await tx.deliveryOrder.update({
+        where: { id: delivery.id },
+        data: { status: "COMPLETED" },
       });
+
       await tx.order.update({
-        where: { id: request.orderId! },
-        data: { status: "ARRIVED_AT_OUTLET" },
+        where: { id: orderId },
+        data: { status: "COMPLETED" },
       });
+
       await tx.driver.update({
         where: { id: driver.id },
-        data: { currentPickupOrderId: null },
+        data: { currentDeliveryOrderId: null },
       });
+
       const notification = await tx.notification.create({
         data: {
-          title: "Order arrived at outlet",
-          description: `Order ${request.order.orderNumber} arrived at outlet`,
+          title: "Order arrived at customer",
+          description: `Order ${order.orderNumber} has arrived and is completed.`,
         },
       });
-      await tx.adminNotification.create({
+
+      await tx.customerNotification.create({
         data: {
-          outletId: driver.outletId,
+          userId: order.customerId,
           notificationId: notification.id,
           isRead: false,
         },
       });
     });
 
-    return { message: "Order successfully delivered to outlet." };
+    return { message: "Order successfully delivered to customer." };
   };
 
   takeDelivery = async (orderId: string) => {

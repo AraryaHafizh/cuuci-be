@@ -3,6 +3,7 @@ import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
 import { Customers } from "./dto/customer.dto";
 import { History } from "./dto/history.dto";
+import { buildOrderLog } from "./helper";
 
 export class CustomerService {
   private prisma: PrismaService;
@@ -93,6 +94,73 @@ export class CustomerService {
     return {
       message: "User activity fetched successfully",
       data: orders,
+    };
+  };
+
+  getOrder = async (customerId: string, orderId: string) => {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        address: true,
+        outlet: true,
+        payment:true,
+        customer: {
+          select: { name: true, phoneNumber: true },
+        },
+        orderItems: {
+          select: {
+            laundryItem: { select: { name: true } },
+            quantity: true,
+          },
+        },
+        orderWorkProcesses: {
+          include: {
+            worker: {
+              select: {
+                worker: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+        deliveryOrders: {
+          include: {
+            driver: {
+              select: {
+                driver: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+        pickupOrders: {
+          select: {
+            pickupNumber: true,
+            pickupAt: true,
+            pickupProofUrl: true,
+            updatedAt: true,
+            driver: {
+              select: {
+                driver: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (order?.customerId !== customerId)
+      throw new ApiError("Unauthorized", 401);
+
+    const orderLog = buildOrderLog(order);
+
+    return {
+      message: "Order detail fetched successfully",
+      data: {
+        ...order,
+        orderLog,
+        pickupOrders: undefined,
+        deliveryOrders: undefined,
+        orderWorkProcesses: undefined,
+      },
     };
   };
 
