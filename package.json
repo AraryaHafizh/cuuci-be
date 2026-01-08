@@ -43,6 +43,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.9",
     "prisma": "^6.19.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "xendit-node": "^7.0.0"
   }
 }

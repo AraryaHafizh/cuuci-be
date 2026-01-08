@@ -201,7 +201,7 @@ export class WorkerService {
     const history = await this.prisma.orderWorkProcess.findMany({
       skip,
       take: limit,
-      where: whereClause,
+      where: { workerId, outletId: worker.outletId, status: "COMPLETED" },
       include: {
         order: {
           select: {

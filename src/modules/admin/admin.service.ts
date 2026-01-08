@@ -1,6 +1,7 @@
 import { Station } from "../../generated/prisma/enums";
 import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
+import { PaymentService } from "../payment/payment.service";
 import { NotificationService } from "../notifications/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
@@ -18,11 +19,15 @@ function getNextStation(station: Station): Station | null {
 
 export class AdminService {
   private prisma: PrismaService;
+  private paymentService: PaymentService;
   private notificationService: NotificationService;
 
   constructor() {
     this.prisma = new PrismaService();
     this.notificationService = new NotificationService();
+    this.paymentService = new PaymentService();
+    this.notificationService = new NotificationService();
+    this.prisma = new PrismaService();
   }
 
   getOrders = async (adminId: string, query: Orders) => {
@@ -243,6 +248,7 @@ export class AdminService {
           totalWeight,
         },
       });
+
       const mergedItems = Object.values(
         orderItems.reduce((acc: any, item: any) => {
           acc[item.id] ??= { laundryItemId: item.id, quantity: 0 };
@@ -286,6 +292,7 @@ export class AdminService {
         })),
       });
     });
+    await this.paymentService.createPayment({ orderId });
 
     return { message: "Create task success!" };
   };

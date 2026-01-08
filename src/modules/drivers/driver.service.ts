@@ -185,6 +185,9 @@ export class DriverService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const driver = await tx.driver.findFirst({ where: { driverId } });
+      if (!driver) throw new ApiError("Driver not found", 404);
+
       if (driver.currentPickupOrderId || driver.currentDeliveryOrderId) {
         throw new ApiError("You have an ongoing order", 409);
       }
