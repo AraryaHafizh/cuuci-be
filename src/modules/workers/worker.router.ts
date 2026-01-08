@@ -49,7 +49,7 @@ export class WorkerRouter {
       "/jobs/finish/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["WORKER"]),
-      validateBody(ValidateDTO),
+      // validateBody(ValidateDTO),
       this.workerController.finishJob
     );
     this.router.get(

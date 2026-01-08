@@ -102,8 +102,10 @@ export class CustomerService {
       where: { id: orderId },
       include: {
         address: true,
-        outlet: true,
-        payment:true,
+        payment: true,
+        outlet: {
+          include: { admin: { select: { name: true, phoneNumber: true } } },
+        },
         customer: {
           select: { name: true, phoneNumber: true },
         },

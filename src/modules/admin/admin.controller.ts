@@ -15,6 +15,12 @@ export class AdminContorller {
     const orders = await this.adminService.getOrders(adminId, query);
     res.status(200).json(orders);
   };
+  getOrder = async (req: any, res: any) => {
+    const adminId = String(res.locals.user.id);
+    const id = req.params.id;
+    const order = await this.adminService.getOrder(adminId, id);
+    res.status(200).json(order);
+  };
   getArrivedOrders = async (req: any, res: any) => {
     const adminId = String(res.locals.user.id);
     const orders = await this.adminService.getArrivedOrders(adminId);

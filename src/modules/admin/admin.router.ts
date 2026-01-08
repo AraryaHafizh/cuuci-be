@@ -49,6 +49,12 @@ export class AdminRouter {
       validateBody(CreateDTO),
       this.adminContorller.assignOrderToWorkers
     );
+    this.router.get(
+      "/order/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
+      this.adminContorller.getOrder
+    );
   };
   getRouter = () => {
     return this.router;

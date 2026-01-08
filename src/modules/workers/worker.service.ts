@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client";
 import { Station } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
+import { AttendanceService } from "../attendances/attendance.service";
 import { NotificationService } from "../notifications/notification.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -21,11 +22,13 @@ export class WorkerService {
   private prisma: PrismaService;
   private notificationService: NotificationService;
   private outletService: OutletService;
+  private attendanceService: AttendanceService;
 
   constructor() {
     this.prisma = new PrismaService();
     this.notificationService = new NotificationService();
     this.outletService = new OutletService();
+    this.attendanceService = new AttendanceService();
   }
 
   getWorkers = async (query: workers) => {
@@ -109,7 +112,7 @@ export class WorkerService {
         },
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
     });
 
@@ -145,7 +148,11 @@ export class WorkerService {
           include: {
             customer: true,
             orderItems: {
-              include: { laundryItem: { select: { name: true } } },
+              select: {
+                laundryItemId: true,
+                quantity: true,
+                laundryItem: { select: { name: true } },
+              },
             },
           },
         },
@@ -162,7 +169,7 @@ export class WorkerService {
   };
 
   getJobsHistory = async (workerId: string, query: GetJobsDTO) => {
-    const { search, startDate, endDate, page, limit } = query;
+    const { search, startDate, endDate, page, limit, status, station } = query;
 
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
@@ -171,9 +178,8 @@ export class WorkerService {
     if (!worker) throw new ApiError("Worker not found", 404);
 
     const whereClause: Prisma.OrderWorkProcessWhereInput = {
-      workerId,
+      workerId: worker.id,
       outletId: worker.outletId,
-      status: "COMPLETED",
     };
     if (startDate || endDate) {
       whereClause.completedAt = {
@@ -186,17 +192,22 @@ export class WorkerService {
         { order: { orderNumber: { contains: search, mode: "insensitive" } } },
       ];
     }
+    if (status) whereClause.status = status;
+
+    if (station) whereClause.station = station;
+
     const skip = (page - 1) * limit;
 
     const history = await this.prisma.orderWorkProcess.findMany({
       skip,
       take: limit,
-      where: { workerId, outletId: worker.outletId, status: "COMPLETED" },
+      where: whereClause,
       include: {
         order: {
           select: {
             id: true,
             status: true,
+            orderNumber: true,
           },
         },
       },
@@ -232,8 +243,20 @@ export class WorkerService {
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
-
     if (!worker) throw new ApiError("Worker not found", 404);
+
+    const isWorking = await this.attendanceService.getStatus(
+      worker.workerId,
+      "DRIVER"
+    );
+
+    if (!isWorking.isWorking) {
+      throw new ApiError(
+        "You are not checked in yet. Please check in to start working.",
+        400
+      );
+    }
+
     if (worker.isBypass)
       throw new ApiError(
         "You must resolve the bypass request before taking another job",
@@ -452,7 +475,7 @@ export class WorkerService {
 
     const isValid = await this.validateItems(jobId, data);
     if (!isValid) {
-      throw new ApiError("Item quantity mismatch. Please request bypass.", 400);
+      throw new ApiError("Item quantity mismatch. Please check again.", 400);
     }
 
     const nextStation = getNextStation(job.station);
@@ -487,6 +510,7 @@ export class WorkerService {
             outletId: job.outletId,
             station: nextStation,
             status: "PENDING",
+            notes: job.notes,
           },
         });
       } else {
