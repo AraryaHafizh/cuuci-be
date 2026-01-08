@@ -44,8 +44,8 @@ export class PaymentService {
         payerEmail: order.customer.email,
         description: `Payment for Order #${order.orderNumber}`,
         invoiceDuration: 86400, // 24 hours in seconds
-        successRedirectUrl: `${BASE_URL_FE}/orders/${orderId}/payment/success`,
-        failureRedirectUrl: `${BASE_URL_FE}/orders/${orderId}/payment/failed`,
+        successRedirectUrl: `${BASE_URL_FE}/dashboard/orders/${orderId}`,
+        failureRedirectUrl: `${BASE_URL_FE}/dashboard/orders/${orderId}`,
       },
     });
 

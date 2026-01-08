@@ -514,7 +514,7 @@ export class WorkerService {
           },
         });
       } else {
-        const finalStatus = job.order.payment
+        const finalStatus = job.order.payment!.status === "SUCCESS"
           ? "READY_FOR_DELIVERY"
           : "WAITING_FOR_PAYMENT";
 

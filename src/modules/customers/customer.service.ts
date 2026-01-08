@@ -190,6 +190,7 @@ export class CustomerService {
 
     const orders = await this.prisma.order.findMany({
       where,
+      include: {payment:true},
       orderBy: { createdAt: "desc" },
       take: 10,
     });

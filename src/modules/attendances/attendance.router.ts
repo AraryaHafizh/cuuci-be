@@ -54,8 +54,9 @@ export class AttendanceRouter {
 
     // log (self or admin) — admins can view reports; /log is self-only here
     this.router.get(
-      "/log",
+      "/log/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET),
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN", "SUPER_ADMIN"]),
       validateQuery(GetAttendanceLogDTO),
       (req, res, next) => this.attendanceController.getLog(req, res, next)
     );

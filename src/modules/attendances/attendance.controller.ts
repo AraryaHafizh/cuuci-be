@@ -56,6 +56,7 @@ export class AttendanceController {
   getLog = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const auth = res.locals.user;
+      const id = req.params.id;
       if (!auth || !auth.id) throw new ApiError("Unauthenticated", 401);
 
       const dto = plainToInstance(GetAttendanceLogDTO, req.query || {});
@@ -76,7 +77,7 @@ export class AttendanceController {
         throw new ApiError("Forbidden to view other user's log", 403);
       }
 
-      const list = await service.getUserAttendanceLog(targetUserId, dto);
+      const list = await service.getUserAttendanceLog(id, dto);
       return res.status(200).json({ success: true, data: list });
     } catch (err: any) {
       return next(err);
