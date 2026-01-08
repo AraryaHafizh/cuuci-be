@@ -205,7 +205,7 @@ model DeliveryOrder {
   driver         Driver?     @relation(fields: [driverId], references: [id])
   orderId        String
   order          Order       @relation(fields: [orderId], references: [id])
-  deliveredAt    DateTime?
+  deliveredAt    DateTime
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -222,8 +222,8 @@ model Payment {
   method        String
   status        PaymentStatus
   paidAt        DateTime?
-  externalId    String?       // Xendit invoice ID
-  expiresAt     DateTime?     // Payment expiry time
+  externalId    String? // Xendit invoice ID
+  expiresAt     DateTime? // Payment expiry time
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

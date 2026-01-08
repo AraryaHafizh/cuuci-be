@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/api-error";
 import { NotificationService } from "../notifications/notification.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { GetJobsDTO } from "./dto/get-jobs.dto";
 import { ValidateDTO } from "./dto/validate.dto";
 import { workers } from "./dto/workers.dto";
 
@@ -159,7 +160,8 @@ export class WorkerService {
     };
   };
 
-  getJobsHistory = async (workerId: string) => {
+  getJobsHistory = async (workerId: string, query: GetJobsDTO) => {
+    const { page, search, startDate, endDate, limit } = query;
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });

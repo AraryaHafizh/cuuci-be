@@ -1,14 +1,17 @@
 import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../../utils/api-error";
+import { PaymentService } from "../payment/payment.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
 import { Orders } from "./dto/order.dto";
 
 export class AdminService {
   private prisma: PrismaService;
+  private paymentService : PaymentService;
 
   constructor() {
     this.prisma = new PrismaService();
+    this.paymentService = new PaymentService();
   }
 
   getOrders = async (adminId: string, query: Orders) => {
@@ -124,6 +127,8 @@ export class AdminService {
         where: { orderId, type: "INSTRUCTION" },
       });
 
+      
+      
       const order = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -173,6 +178,18 @@ export class AdminService {
           isRead: false,
         })),
       });
+
+      const paymentService = await this.paymentService.createPayment(orderId)
+      await tx.payment.create({ 
+        data: {
+          orderId,
+          amount: order.totalPrice,
+          status: "PENDING",
+          method: "XENDIT",
+          invoiceNumber: order.orderNumber,
+          invoiceUrl: paymentService.data.invoiceUrl,
+        }
+      })
     });
 
     return { message: "Create task success!" };
