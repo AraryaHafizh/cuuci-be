@@ -162,8 +162,7 @@ export class WorkerService {
   };
 
   getJobsHistory = async (workerId: string, query: GetJobsDTO) => {
-    const { search, startDate, endDate, page, limit } = query;
-
+    const { page, search, startDate, endDate, limit } = query;
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
