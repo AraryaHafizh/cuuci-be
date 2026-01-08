@@ -18,7 +18,7 @@ function getNextStation(station: Station): Station | null {
 
 export class AdminService {
   private prisma: PrismaService;
-  private paymentService : PaymentService;
+  private paymentService: PaymentService;
   private notificationService: NotificationService;
 
   constructor() {
@@ -176,6 +176,7 @@ export class AdminService {
           totalWeight,
         },
       });
+
       const mergedItems = Object.values(
         orderItems.reduce((acc: any, item: any) => {
           acc[item.id] ??= { laundryItemId: item.id, quantity: 0 };
@@ -218,19 +219,8 @@ export class AdminService {
           isRead: false,
         })),
       });
-
-      const paymentService = await this.paymentService.createPayment(orderId)
-      await tx.payment.create({ 
-        data: {
-          orderId,
-          amount: order.totalPrice,
-          status: "PENDING",
-          method: "XENDIT",
-          invoiceNumber: order.orderNumber,
-          invoiceUrl: paymentService.data.invoiceUrl,
-        }
-      })
     });
+    await this.paymentService.createPayment({ orderId });
 
     return { message: "Create task success!" };
   };

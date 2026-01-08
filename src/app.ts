@@ -17,6 +17,7 @@ import { AdminRouter } from "./modules/admin/admin.router";
 import { LaundryRouter } from "./modules/laundry/laundry.router";
 import { SummaryRouter } from "./modules/summaries/summary.router";
 import { ReportRouter } from "./modules/reports/report.router";
+import { PaymentRouter } from "./modules/payment/payment.router";
 
 export class App {
   app: Express;
@@ -32,6 +33,7 @@ export class App {
   private configure() {
     this.app.use(cors());
     this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
   }
 
   private routes() {
@@ -49,6 +51,7 @@ export class App {
     const laundryRouter = new LaundryRouter();
     const summaryRouter = new SummaryRouter();
     const reportRouter = new ReportRouter();
+    const paymentRouter = new PaymentRouter();
 
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/addresses", addressRouter.getRouter());
@@ -64,6 +67,7 @@ export class App {
     this.app.use("/laundries", laundryRouter.getRouter());
     this.app.use("/summaries", summaryRouter.getRouter());
     this.app.use("/reports", reportRouter.getRouter());
+    this.app.use("/payments", paymentRouter.getRouter());
   }
 
   private handleError() {
