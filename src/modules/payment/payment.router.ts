@@ -3,7 +3,7 @@ import { JWT_SECRET } from "../../config/env";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware";
 import { PaymentController } from "./payment.controller";
 
-export class OrderRouter {
+export class PaymentRouter {
   private router: Router;
   private paymentController: PaymentController;
   private jwtMiddleware: JwtMiddleware;
@@ -16,11 +16,11 @@ export class OrderRouter {
   }
 
   private initializedRoutes = () => {
-    this.router.post(
-      "/orders/:orderId/payment",
-      this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.paymentController.createPayment
-    );
+    // this.router.post(
+    //   "/orders/:orderId/payment",
+    //   this.jwtMiddleware.verifyToken(JWT_SECRET!),
+    //   this.paymentController.createPayment
+    // );
 
     this.router.get(
       "/orders/:orderId/payment",
