@@ -30,6 +30,18 @@ export class AdminRouter {
       this.jwtMiddleware.verifyRole(["OUTLET_ADMIN"]),
       this.adminContorller.getArrivedOrders
     );
+    this.router.get(
+      "/orders/bypass",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN"]),
+      this.adminContorller.getBypassOrders
+    );
+    this.router.post(
+      "/orders/bypass/resolve/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN"]),
+      this.adminContorller.resolveBypass
+    );
     this.router.post(
       "/orders/:orderId/assign",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),

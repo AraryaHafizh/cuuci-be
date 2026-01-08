@@ -73,7 +73,7 @@ export class UserUpdateService {
       })
     );
     
-    const total = await this.prisma.order.count({
+    const total = await this.prisma.user.count({
       where,
     });
 
@@ -115,6 +115,10 @@ export class UserUpdateService {
 
     if (body.name) {
       updateData.name = body.name;
+    }
+
+    if (body.phoneNumber) {
+      updateData.phoneNumber = body.phoneNumber;
     }
 
     if (profilePictureUrl) {

@@ -3,6 +3,7 @@ import { plainToInstance } from "class-transformer";
 import { WorkerService } from "./worker.service";
 import { workers } from "./dto/workers.dto";
 import { ValidateDTO } from "./dto/validate.dto";
+import { GetJobsDTO } from "./dto/get-jobs.dto";
 
 export class WorkerContorller {
   private workerService: WorkerService;

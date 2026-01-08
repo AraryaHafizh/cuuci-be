@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/api-error";
 import { NotificationService } from "../notifications/notification.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { GetJobsDTO } from "./dto/get-jobs.dto";
 import { ValidateDTO } from "./dto/validate.dto";
 import { workers } from "./dto/workers.dto";
 
@@ -50,7 +51,7 @@ export class WorkerService {
       })
     );
 
-    return { message: "Workers fetched suceessfully", data: filtered };
+    return { messae: "Workers fetched suceessfully", data: filtered };
   };
 
   getWorker = async (workerId: string) => {
@@ -80,16 +81,16 @@ export class WorkerService {
 
   getJobs = async (workerId: string, query: GetJobsDTO) => {
     const { page, limit } = query;
+    const skip = (page - 1) * limit;
+
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
 
     if (!worker) throw new Error("Worker not found");
 
-    const skip = (page - 1) * limit;
     const jobs = await this.prisma.orderWorkProcess.findMany({
       skip,
-      take: limit,
       where: {
         outletId: worker.outletId,
         OR: [
@@ -111,6 +112,7 @@ export class WorkerService {
         createdAt: "asc",
       },
     });
+
     const total = await this.prisma.orderWorkProcess.count({
       where: {
         outletId: worker.outletId,
@@ -159,7 +161,9 @@ export class WorkerService {
     };
   };
 
-  getJobsHistory = async (workerId: string) => {
+  getJobsHistory = async (workerId: string, query: GetJobsDTO) => {
+    const { search, startDate, endDate, page, limit } = query;
+
     const worker = await this.prisma.worker.findUnique({
       where: { workerId },
     });
@@ -171,36 +175,34 @@ export class WorkerService {
       outletId: worker.outletId,
       status: "COMPLETED",
     };
-
     if (startDate || endDate) {
       whereClause.completedAt = {
         gte: startDate ? new Date(startDate) : undefined,
         lte: endDate ? new Date(endDate) : undefined,
       };
     }
-
     if (search) {
       whereClause.OR = [
         { order: { orderNumber: { contains: search, mode: "insensitive" } } },
       ];
     }
-
     const skip = (page - 1) * limit;
+
     const history = await this.prisma.orderWorkProcess.findMany({
       skip,
       take: limit,
-      where: whereClause,
+      where: { workerId, outletId: worker.outletId, status: "COMPLETED" },
       include: {
         order: {
           select: {
             id: true,
-            orderNumber: true,
             status: true,
           },
         },
       },
       orderBy: { completedAt: "desc" },
     });
+
     const total = await this.prisma.orderWorkProcess.count({
       where: whereClause,
     });
@@ -433,7 +435,9 @@ export class WorkerService {
 
     const job = await this.prisma.orderWorkProcess.findUnique({
       where: { id: jobId },
-      include: { order: { select: { orderNumber: true, outletId: true } } },
+      include: {
+        order: { select: { orderNumber: true, outletId: true, payment: true } },
+      },
     });
 
     if (!job) throw new ApiError("Job not found finish", 404);
@@ -486,11 +490,13 @@ export class WorkerService {
           },
         });
       } else {
+        const finalStatus = job.order.payment
+          ? "READY_FOR_DELIVERY"
+          : "WAITING_FOR_PAYMENT";
+
         await tx.order.update({
           where: { id: job.orderId },
-          data: {
-            status: "WAITING_FOR_PAYMENT",
-          },
+          data: { status: finalStatus },
         });
       }
     });

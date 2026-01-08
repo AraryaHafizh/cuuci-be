@@ -23,7 +23,7 @@ export class Orders extends PaginationQueryParams {
 
   @IsOptional()
   @IsBoolean()
-  isHistory?: boolean;
+  isHistory?: boolean = true;
 
   @IsOptional()
   @IsString()
