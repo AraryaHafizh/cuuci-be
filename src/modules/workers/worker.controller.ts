@@ -45,21 +45,18 @@ export class WorkerContorller {
     res.status(200).send(result);
   };
 
+  getStatus = async (req: Request, res: Response) => {
+    const workerId = String(res.locals.user.id);
+    const result = await this.workerService.getStatus(workerId);
+    res.status(200).send(result);
+  }
+
   takeJob = async (req: Request, res: Response) => {
     const jobId = req.params.id;
     const workerId = String(res.locals.user.id);
     const result = await this.workerService.takeJob(workerId, jobId);
     res.status(200).send(result);
   };
-
-  // validateItems = async (req: Request, res: Response) => {
-  //   const result = await this.workerService.validateItems();
-  //   res.status(200).send(result);
-  // };
-  // requestBypass = async (req: Request, res: Response) => {
-  //   const result = await this.workerService.requestBypass();
-  //   res.status(200).send(result);
-  // };
 
   requestBypass = async (req: Request, res: Response) => {
     const workerId = String(res.locals.user.id);

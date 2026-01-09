@@ -62,8 +62,10 @@ export class NotificationService {
     }
 
     const notifications = await this.prisma.notification.findMany({
+      take: limit,
       where: whereClause,
       include: includeClause,
+      skip: (page - 1) * limit,
       orderBy: { createdAt: "desc" },
     });
 
@@ -71,6 +73,7 @@ export class NotificationService {
       id: n.id,
       title: n.title,
       description: n.description,
+      createdAt: n.createdAt,
     }));
 
     const isRead = notifications.every((n) =>

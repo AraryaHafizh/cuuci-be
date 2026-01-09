@@ -59,6 +59,12 @@ export class WorkerRouter {
       this.workerController.getJobDetail
     );
     this.router.get(
+      "/status",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["WORKER"]),
+      this.workerController.getStatus
+    );
+    this.router.get(
       "/history",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["WORKER"]),
