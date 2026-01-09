@@ -13,7 +13,11 @@ export class NotificationService {
     this.prisma = new PrismaService();
   }
 
-  getNotifications = async (userId: string, role: Role, query: GetNotificationsDTO) => {
+  getNotifications = async (
+    userId: string,
+    role: Role,
+    query: GetNotificationsDTO
+  ) => {
     const { page, startDate, endDate, limit } = query;
     const whereClause: Prisma.NotificationWhereInput = {};
     const includeClause: Prisma.NotificationInclude = {};
@@ -70,8 +74,9 @@ export class NotificationService {
     }));
 
     const isRead = notifications.every((n) =>
-      (n as any)[relationKey].every((rel: any) => rel.isRead === true)
+      ((n as any)[relationKey] ?? []).every((rel: any) => rel.isRead === true)
     );
+
     const total = await this.prisma.notification.count({
       where: whereClause,
     });

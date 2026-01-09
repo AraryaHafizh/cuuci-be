@@ -102,8 +102,10 @@ export class CustomerService {
       where: { id: orderId },
       include: {
         address: true,
-        outlet: true,
-        payment:true,
+        payment: true,
+        outlet: {
+          include: { admin: { select: { name: true, phoneNumber: true } } },
+        },
         customer: {
           select: { name: true, phoneNumber: true },
         },
@@ -188,6 +190,7 @@ export class CustomerService {
 
     const orders = await this.prisma.order.findMany({
       where,
+      include: {payment:true},
       orderBy: { createdAt: "desc" },
       take: 10,
     });

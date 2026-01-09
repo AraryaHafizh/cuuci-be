@@ -1,4 +1,5 @@
 const PROCESS_FLOW = [
+  "CREATED",
   "PICKUP",
   "WASHING",
   "IRONING",
@@ -9,7 +10,7 @@ const PROCESS_FLOW = [
 function mockLog(process: string) {
   return {
     process,
-    status: process === "DELIVERY" ? "" : "PENDING",
+    status: process === "CREATED" ? "COMPLETED" : "PENDING",
     at: null,
     name: "",
     phoneNumber: "",
@@ -17,6 +18,17 @@ function mockLog(process: string) {
 }
 
 export function buildOrderLog(order: any) {
+  const createdLog = order?.createdAt
+    ? [
+        {
+          process: "CREATED",
+          status: "COMPLETED",
+          at: order.createdAt,
+          name: order.customer?.name ?? "",
+          phoneNumber: order.customer?.phoneNumber ?? "",
+        },
+      ]
+    : [];
   const pickupLogs =
     order.pickupOrders?.map((p: any) => ({
       process: "PICKUP",
@@ -48,7 +60,12 @@ export function buildOrderLog(order: any) {
         }))
       : [];
 
-  const allLogs = [...pickupLogs, ...workProcessLogs, ...deliveryLogs];
+  const allLogs = [
+    ...createdLog,
+    ...pickupLogs,
+    ...workProcessLogs,
+    ...deliveryLogs,
+  ];
 
   const logMap = new Map<string, any>();
   for (const log of allLogs) {
