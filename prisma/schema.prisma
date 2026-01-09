@@ -205,7 +205,7 @@ model DeliveryOrder {
   driver         Driver?     @relation(fields: [driverId], references: [id])
   orderId        String
   order          Order       @relation(fields: [orderId], references: [id])
-  deliveredAt    DateTime
+  deliveredAt    DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 

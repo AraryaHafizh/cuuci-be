@@ -1,17 +1,54 @@
 // src/modules/attendance/attendance.service.ts
 import { PrismaService } from "../prisma/prisma.service";
-import { GetAttendanceLogDTO, GetAttendanceReportDTO } from "./dto/attendance.dto";
+import {
+  GetAttendanceLogDTO,
+  GetAttendanceReportDTO,
+} from "./dto/attendance.dto";
 import { ApiError } from "../../utils/api-error";
 import { Role } from "../../generated/prisma/enums";
+
+function isSameDate(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 export class AttendanceService {
   private prisma: PrismaService;
   // typed allowed roles array to satisfy TypeScript and use generated Role
-  private allowedRolesForAttendance: Role[] = [Role.WORKER, Role.DRIVER];
+  private allowedRolesForAttendance: Role[] = [
+    "OUTLET_ADMIN",
+    "WORKER",
+    "DRIVER",
+  ];
 
   constructor() {
     this.prisma = new PrismaService();
   }
+
+  getStatus = async (id: string, role: string) => {
+    const attendance = await this.getLastAttendance(id);
+    const now = new Date();
+
+    const shift =
+      role === "WORKER"
+        ? (await this.prisma.worker.findUnique({ where: { workerId: id } }))
+            ?.shift
+        : null;
+
+    if (!attendance) {
+      return { isWorking: false, shift };
+    }
+
+    const isToday = isSameDate(attendance.checkIn, now);
+
+    return {
+      isWorking: isToday && !attendance.checkOut,
+      shift,
+    };
+  };
 
   // POST /attendance/check-in
   checkIn = async (userId: string) => {
@@ -37,7 +74,10 @@ export class AttendanceService {
     });
 
     if (existing && !existing.checkOut) {
-      throw new ApiError("Already checked-in for today and not checked-out", 400);
+      throw new ApiError(
+        "Already checked-in for today and not checked-out",
+        400
+      );
     }
 
     const attendance = await this.prisma.attendance.create({
@@ -97,11 +137,13 @@ export class AttendanceService {
   // GET /attendance/report?outletId=&from=&to=
   // Now includes both workers and drivers that belong to the outlet.
   getOutletAttendanceReport = async (dto: GetAttendanceReportDTO) => {
-    const from = dto.from ? new Date(dto.from) : (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 30);
-      return d;
-    })();
+    const from = dto.from
+      ? new Date(dto.from)
+      : (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - 30);
+          return d;
+        })();
     const to = dto.to ? new Date(dto.to) : new Date();
 
     // find users (workers + drivers) for this outlet
@@ -129,7 +171,7 @@ export class AttendanceService {
       select: { id: true, name: true, email: true },
     });
 
-    const userIds = users.map(u => u.id);
+    const userIds = users.map((u) => u.id);
     if (userIds.length === 0) {
       return { from, to, outletId: dto.outletId, report: [] };
     }
@@ -145,9 +187,18 @@ export class AttendanceService {
     });
 
     // aggregate by userId
-    const grouped: Record<string, { user: any; totalDays: number; records: any[]; totalHours: number }> = {};
+    const grouped: Record<
+      string,
+      { user: any; totalDays: number; records: any[]; totalHours: number }
+    > = {};
     for (const a of attendances) {
-      if (!grouped[a.userId]) grouped[a.userId] = { user: a.user, totalDays: 0, records: [], totalHours: 0 };
+      if (!grouped[a.userId])
+        grouped[a.userId] = {
+          user: a.user,
+          totalDays: 0,
+          records: [],
+          totalHours: 0,
+        };
       grouped[a.userId].records.push(a);
       grouped[a.userId].totalDays += 1;
       if (a.checkOut) {
@@ -156,7 +207,7 @@ export class AttendanceService {
       }
     }
 
-    const result = Object.values(grouped).map(g => ({
+    const result = Object.values(grouped).map((g) => ({
       user: { id: g.user.id, name: g.user.name, email: g.user.email },
       totalDays: g.totalDays,
       totalHours: Number(g.totalHours.toFixed(2)),

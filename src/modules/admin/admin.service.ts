@@ -6,6 +6,7 @@ import { NotificationService } from "../notifications/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
 import { Orders } from "./dto/order.dto";
+import { buildOrderLog } from "../customers/helper";
 
 const nextStationMap = {
   WASHING: "IRONING",
@@ -23,6 +24,7 @@ export class AdminService {
 
   constructor() {
     this.prisma = new PrismaService();
+    this.notificationService = new NotificationService();
     this.paymentService = new PaymentService();
     this.notificationService = new NotificationService();
     this.prisma = new PrismaService();
@@ -90,6 +92,78 @@ export class AdminService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+    };
+  };
+
+  getOrder = async (adminId: string, id: string) => {
+    const order = await this.prisma.order.findFirst({
+      where: { id },
+      include: {
+        address: true,
+        payment: true,
+        notes: true,
+        outlet: {
+          include: { admin: { select: { name: true, phoneNumber: true } } },
+        },
+        customer: {
+          select: { name: true, phoneNumber: true },
+        },
+        orderItems: {
+          select: {
+            laundryItem: { select: { name: true } },
+            quantity: true,
+          },
+        },
+        orderWorkProcesses: {
+          include: {
+            worker: {
+              select: {
+                worker: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+        deliveryOrders: {
+          include: {
+            driver: {
+              select: {
+                driver: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+        pickupOrders: {
+          select: {
+            pickupNumber: true,
+            pickupAt: true,
+            pickupProofUrl: true,
+            updatedAt: true,
+            driver: {
+              select: {
+                driver: { select: { name: true, phoneNumber: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (order?.outlet.adminId !== adminId) {
+      throw new ApiError("Not authorized", 401);
+    }
+    if (!order) throw new ApiError("No order found", 404);
+
+    const orderLog = buildOrderLog(order);
+
+    return {
+      message: "Order detail fetched successfully",
+      data: {
+        ...order,
+        orderLog,
+        pickupOrders: undefined,
+        deliveryOrders: undefined,
+        orderWorkProcesses: undefined,
       },
     };
   };

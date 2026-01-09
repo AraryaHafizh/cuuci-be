@@ -1,3 +1,4 @@
+import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { hashPassword } from "../../utils/password";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
@@ -72,7 +73,7 @@ export class UserUpdateService {
         return { ...rest, outletName };
       })
     );
-    
+
     const total = await this.prisma.user.count({
       where,
     });
@@ -94,9 +95,43 @@ export class UserUpdateService {
 
     if (!user) throw new ApiError("User not found", 404);
 
+    let task: any[] = [];
+
+    switch (user.role) {
+      case "DRIVER": {
+        const driver = await this.prisma.driver.findFirst({
+          where: { driverId: id },
+          include: {
+            pickupOrders: { include: { order: true } },
+            deliveryOrders: { include: { order: true } },
+          },
+        });
+
+        if (driver) {
+          task = [...driver.pickupOrders, ...driver.deliveryOrders];
+        }
+        break;
+      }
+
+      case "WORKER": {
+        const worker = await this.prisma.worker.findFirst({
+          where: { workerId: id },
+          include: { orderWorkProcesses: { include: { order: true } } },
+        });
+
+        if (worker) {
+          task = worker.orderWorkProcesses;
+        }
+        break;
+      }
+    }
+
     return {
       message: "User fetched successfully",
-      data: user,
+      data: {
+        user,
+        task, // <-- sekarang selalu array
+      },
     };
   };
 

@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client";
 import { randomCodeGenerator } from "../../script/randomCodeGenerator";
 import { ApiError } from "../../utils/api-error";
+import { AttendanceService } from "../attendances/attendance.service";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -10,11 +11,13 @@ export class DriverService {
   private prisma: PrismaService;
   private cloudinaryService: CloudinaryService;
   private outletService: OutletService;
+  private attendanceService: AttendanceService;
 
   constructor() {
     this.prisma = new PrismaService();
     this.cloudinaryService = new CloudinaryService();
     this.outletService = new OutletService();
+    this.attendanceService = new AttendanceService();
   }
 
   getDrivers = async (query: Drivers) => {
@@ -116,7 +119,11 @@ export class DriverService {
     const driver = await this.prisma.driver.findUnique({ where: { driverId } });
     const histories = await this.prisma.order.findMany({
       where: { driverId: driver!.id },
-      include: { customer: true },
+      include: {
+        customer: { select: { name: true } },
+        pickupOrders: true,
+        deliveryOrders: true,
+      },
     });
 
     return {
@@ -162,6 +169,21 @@ export class DriverService {
   };
 
   takeOrder = async (driverId: string, orderId: string) => {
+    const driver = await this.prisma.driver.findFirst({ where: { driverId } });
+    if (!driver) throw new ApiError("Driver not found", 404);
+
+    const isWorking = await this.attendanceService.getStatus(
+      driver.driverId,
+      "DRIVER"
+    );
+
+    if (!isWorking.isWorking) {
+      throw new ApiError(
+        "You are not checked in yet. Please check in to start working.",
+        400
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const driver = await tx.driver.findFirst({ where: { driverId } });
       if (!driver) throw new ApiError("Driver not found", 404);
