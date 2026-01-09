@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "npm run build && node dist/index.js",
+    "build": "tsc && npm run copy-files",
+    "copy-files": "node -e \"require('fs').cpSync('src/modules/mail/templates', 'dist/src/modules/mail/templates', { recursive: true });\"",
     "dev": "nodemon src/index.ts",
+    "start": "npm run build && node dist/src/index.js",
     "postinstall": "prisma generate"
   },
   "keywords": [],
