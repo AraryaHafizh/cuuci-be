@@ -330,10 +330,16 @@ export class WorkerService {
       station = job.station;
     });
 
-    if (station === "WASHING" && customerId) {
+    const stationMessages: Record<Station, string> = {
+      WASHING: "Your laundry is being washed",
+      IRONING: "Your laundry is being ironed",
+      PACKING: "Your laundry is being packed",
+    };
+
+    if (station && customerId && stationMessages[station]) {
       await this.notificationService.pushNotification({
         title: "Order Update",
-        description: "Your laundry is being washed",
+        description: stationMessages[station],
         receiverId: customerId,
         role: "CUSTOMER",
       });
@@ -514,9 +520,10 @@ export class WorkerService {
           },
         });
       } else {
-        const finalStatus = job.order.payment!.status === "SUCCESS"
-          ? "READY_FOR_DELIVERY"
-          : "WAITING_FOR_PAYMENT";
+        const finalStatus =
+          job.order.payment!.status === "SUCCESS"
+            ? "READY_FOR_DELIVERY"
+            : "WAITING_FOR_PAYMENT";
 
         await tx.order.update({
           where: { id: job.orderId },
