@@ -1,5 +1,12 @@
-import { IsOptional, IsString, IsBoolean, IsDateString } from "class-validator";
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+} from "class-validator";
 import { Type } from "class-transformer";
+import { OrderStatus } from "../../../generated/prisma/enums";
 
 export class History {
   @IsOptional()
@@ -17,8 +24,8 @@ export class History {
   endDate?: Date;
 
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
 
   @IsOptional()
   @IsBoolean()
