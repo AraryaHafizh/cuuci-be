@@ -201,7 +201,7 @@ export class WorkerService {
     const history = await this.prisma.orderWorkProcess.findMany({
       skip,
       take: limit,
-      where: { workerId, outletId: worker.outletId, status: "COMPLETED" },
+      where: whereClause,
       include: {
         order: {
           select: {
@@ -237,6 +237,17 @@ export class WorkerService {
     });
 
     if (!worker) throw new Error("Worker not found");
+  };
+
+  getStatus = async (workerId: string) => {
+    const status = await this.prisma.worker.findUnique({
+      where: { workerId },
+      select: { isBypass: true },
+    });
+
+    if (!status) throw new Error("Worker not found");
+
+    return { message: "Status fetched successfully", data: status };
   };
 
   takeJob = async (workerId: string, jobId: string) => {
