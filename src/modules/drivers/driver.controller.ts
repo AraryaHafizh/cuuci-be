@@ -3,6 +3,7 @@ import { plainToInstance } from "class-transformer";
 import { DriverService } from "./driver.service";
 import { ApiError } from "../../utils/api-error";
 import { Drivers } from "./dto/drivers.dto";
+import { GetHistoryDTO } from "./dto/history.dto";
 
 export class DriverContorller {
   private driverService: DriverService;
@@ -43,7 +44,8 @@ export class DriverContorller {
 
   getRequestsHistory = async (req: Request, res: Response) => {
     const driverId = String(res.locals.user.id);
-    const result = await this.driverService.getRequestsHistory(driverId);
+    const query = plainToInstance(GetHistoryDTO, req.query);
+    const result = await this.driverService.getRequestsHistory(driverId, query);
     res.status(200).send(result);
   };
 
