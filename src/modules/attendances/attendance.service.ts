@@ -70,14 +70,10 @@ export class AttendanceService {
         userId: userId,
         checkIn: { gte: startOfDay, lte: endOfDay },
       },
-      orderBy: { checkIn: "desc" },
     });
 
-    if (existing && !existing.checkOut) {
-      throw new ApiError(
-        "Already checked-in for today and not checked-out",
-        400
-      );
+    if (existing) {
+      throw new ApiError("Already checked-in today", 400);
     }
 
     const attendance = await this.prisma.attendance.create({
