@@ -6,6 +6,7 @@ import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { Drivers } from "./dto/drivers.dto";
+import { GetHistoryDTO } from "./dto/history.dto";
 
 export class DriverService {
   private prisma: PrismaService;
@@ -115,20 +116,147 @@ export class DriverService {
     };
   };
 
-  getRequestsHistory = async (driverId: string) => {
-    const driver = await this.prisma.driver.findUnique({ where: { driverId } });
-    const histories = await this.prisma.order.findMany({
-      where: { driverId: driver!.id },
-      include: {
-        customer: { select: { name: true } },
-        pickupOrders: true,
-        deliveryOrders: true,
-      },
+  getRequestsHistory = async (driverId: string, query: GetHistoryDTO) => {
+    const { search, startDate, endDate, page, limit, status, type } = query;
+
+    const driver = await this.prisma.driver.findUnique({
+      where: { driverId },
     });
 
+    if (!driver) throw new ApiError("Driver not found", 404);
+
+    const pickupWhere: Prisma.PickupOrderWhereInput = {
+      driverId: driver.id,
+      outletId: driver.outletId,
+      status: {
+        in: ["WAITING_FOR_PICKUP", "LAUNDRY_ON_THE_WAY", "ARRIVED_AT_OUTLET"],
+      },
+    };
+
+    const deliveryWhere: Prisma.DeliveryOrderWhereInput = {
+      driverId: driver.id,
+      status: { in: ["DELIVERY_ON_THE_WAY", "COMPLETED"] },
+    };
+
+    // Date filter
+    if (startDate || endDate) {
+      const dateFilter = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+
+      pickupWhere.createdAt = dateFilter;
+      deliveryWhere.createdAt = dateFilter;
+    }
+
+    // Search filter
+    if (search) {
+      const searchFilter = [
+        {
+          order: {
+            is: {
+              orderNumber: {
+                contains: search,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        },
+      ];
+
+      pickupWhere.OR = searchFilter;
+      deliveryWhere.OR = searchFilter;
+    }
+
+    if (status) {
+      pickupWhere.status = status;
+      deliveryWhere.status = status;
+    }
+
+    let pickupOrders: any[] = [];
+    let deliveryOrders: any[] = [];
+
+    if (type === "PICKUP") {
+      pickupOrders = await this.prisma.pickupOrder.findMany({
+        where: pickupWhere,
+        include: {
+          order: {
+            select: {
+              orderNumber: true,
+              customer: { select: { name: true } },
+            },
+          },
+        },
+      });
+    } else if (type === "DELIVERY") {
+      deliveryOrders = await this.prisma.deliveryOrder.findMany({
+        where: deliveryWhere,
+        include: {
+          order: {
+            select: {
+              orderNumber: true,
+              customer: { select: { name: true } },
+            },
+          },
+        },
+      });
+    } else {
+      [pickupOrders, deliveryOrders] = await Promise.all([
+        this.prisma.pickupOrder.findMany({
+          where: pickupWhere,
+          include: {
+            order: {
+              select: {
+                orderNumber: true,
+                customer: { select: { name: true } },
+              },
+            },
+          },
+        }),
+
+        this.prisma.deliveryOrder.findMany({
+          where: deliveryWhere,
+          include: {
+            order: {
+              select: {
+                orderNumber: true,
+                customer: { select: { name: true } },
+              },
+            },
+          },
+        }),
+      ]);
+    }
+
+    const pickupHistory = pickupOrders.map((o) => ({
+      ...o,
+      type: "PICKUP",
+      customerName: o.order.customer.name,
+    }));
+
+    const deliveryHistory = deliveryOrders.map((o) => ({
+      ...o,
+      type: "DELIVERY",
+      customerName: o.order.customer.name,
+    }));
+
+    const combined = [...pickupHistory, ...deliveryHistory].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+
+    const total = combined.length;
+    const start = (page - 1) * limit;
+    const paginated = combined.slice(start, start + limit);
+
     return {
-      message: "History fetched successfully",
-      data: histories,
+      message: "Requests history fetched successfully",
+      data: paginated,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   };
 
