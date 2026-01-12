@@ -97,24 +97,35 @@ export class DriverService {
     };
   };
 
-  getRequests = async (driverId: string) => {
-    const outlet = await this.prisma.driver.findFirst({
-      where: { driverId },
-    });
+getRequests = async (driverId: string) => {
+  const outlet = await this.prisma.driver.findFirst({
+    where: { driverId },
+  });
 
-    const requests = await this.prisma.order.findMany({
-      where: {
-        status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
-        outletId: outlet?.outletId,
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  const requests = await this.prisma.order.findMany({
+    where: {
+      status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
+      outletId: outlet?.outletId,
+      pickupTime: {
+        gte: startOfToday,
+        lte: endOfToday,
       },
-      include: { address: true, customer: true, outlet: true },
-    });
+    },
+    include: { address: true, customer: true, outlet: true },
+  });
 
-    return {
-      message: "Requests fetched successfully",
-      data: requests,
-    };
+  return {
+    message: "Requests fetched successfully",
+    data: requests,
   };
+};
+
 
   getRequestsHistory = async (driverId: string, query: GetHistoryDTO) => {
     const { search, startDate, endDate, page, limit, status, type } = query;
