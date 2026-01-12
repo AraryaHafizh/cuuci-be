@@ -31,7 +31,7 @@ export class UserUpdateRouter {
     this.router.patch(
       "/update/:id",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["CUSTOMER"]),
+      this.jwtMiddleware.verifyRole(["CUSTOMER", "SUPER_ADMIN"]),
       this.uploaderMiddleware
         .upload()
         .fields([{ name: "profilePictureUrl", maxCount: 1 }]),

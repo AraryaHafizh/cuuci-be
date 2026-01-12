@@ -61,7 +61,7 @@ export class AddressService {
         mode: "insensitive",
       };
     }
-    
+
     return {
       message: "Address fetched successfully",
       data: addresses,
@@ -106,6 +106,7 @@ export class AddressService {
   };
 
   updateAddress = async (addressId: string, userId: string, dto: updateDTO) => {
+    // TODO: cant update address when in used
     await this.validateAddressOwnership(addressId, userId);
 
     if (dto.isPrimary) {
@@ -127,6 +128,7 @@ export class AddressService {
   };
 
   deleteAddress = async (addressId: string, userId: string) => {
+    // TODO: cant update address when in used
     const address = await this.validateAddressOwnership(addressId, userId);
 
     const addresses = await this.prisma.address.findMany({

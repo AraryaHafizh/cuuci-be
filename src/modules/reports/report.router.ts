@@ -20,13 +20,13 @@ export class ReportRouter {
 
   private initializedRoutes = () => {
     this.router.get(
-      "/reports/sales",
+      "/sales",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.reportController.getSalesReport
     );
 
     this.router.get(
-      "/reports/employees",
+      "/employees",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.reportController.getEmployeePerformance
     );

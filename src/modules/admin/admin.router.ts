@@ -21,7 +21,7 @@ export class AdminRouter {
     this.router.get(
       "/orders",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN"]),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN"]),
       this.adminContorller.getOrders
     );
     this.router.get(
