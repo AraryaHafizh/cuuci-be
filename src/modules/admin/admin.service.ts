@@ -30,7 +30,7 @@ export class AdminService {
     this.prisma = new PrismaService();
   }
 
-  getOrders = async (adminId: string, query: Orders) => {
+  getOrders = async (adminId: string, role: string, query: Orders) => {
     const {
       orderId,
       status,
@@ -42,9 +42,13 @@ export class AdminService {
       isHistory,
     } = query;
     const whereClause: Prisma.OrderWhereInput = {};
-    const outlet = await this.prisma.outlet.findFirst({ where: { adminId } });
+    if (role === "OUTLET_ADMIN") {
+      const outlet = await this.prisma.outlet.findFirst({ where: { adminId } });
 
-    if (!outlet) throw new ApiError("No outlet found", 404);
+      if (!outlet) throw new ApiError("No outlet found", 404);
+
+      whereClause.outletId = outlet.id;
+    }
     if (!isHistory) {
       whereClause.status = { notIn: ["COMPLETED", "CANCELLED"] };
     }
@@ -62,10 +66,7 @@ export class AdminService {
     }
     if (status) whereClause.status = status;
 
-    const outletId = outlet.id;
-    const where: any = { outletId };
-
-    if (orderId) where.orderNumber = orderId;
+    if (orderId) whereClause.orderNumber = orderId;
 
     const skip = (page - 1) * limit;
     const orders = await this.prisma.order.findMany({
@@ -96,7 +97,7 @@ export class AdminService {
     };
   };
 
-  getOrder = async (adminId: string, id: string) => {
+  getOrder = async (adminId: string, id: string, role: string) => {
     const order = await this.prisma.order.findFirst({
       where: { id },
       include: {
@@ -149,8 +150,10 @@ export class AdminService {
       },
     });
 
-    if (order?.outlet.adminId !== adminId) {
-      throw new ApiError("Not authorized", 401);
+    if (role === "OUTLET_ADMIN") {
+      if (order?.outlet.adminId !== adminId) {
+        throw new ApiError("Not authorized", 401);
+      }
     }
     if (!order) throw new ApiError("No order found", 404);
 
@@ -241,8 +244,6 @@ export class AdminService {
         where: { orderId, type: "INSTRUCTION" },
       });
 
-      
-      
       const order = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -395,4 +396,3 @@ export class AdminService {
     return { message: "Bypass resolved successfully" };
   };
 }
-

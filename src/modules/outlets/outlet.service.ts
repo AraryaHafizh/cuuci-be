@@ -1,8 +1,10 @@
+import { Prisma } from "../../generated/prisma/client";
 import { getDistance } from "../../script/getHaversineDistance";
 import { ApiError } from "../../utils/api-error";
 import { generateOutletId } from "../../utils/generate-id";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDTO } from "./dto/create.dto";
+import { OutletsDTO } from "./dto/outlet.dto";
 
 export class OutletService {
   private prisma: PrismaService;
@@ -11,19 +13,59 @@ export class OutletService {
     this.prisma = new PrismaService();
   }
 
-  getOutlets = async () => {
+  getOutlets = async (query: OutletsDTO) => {
+    const { outletId, page, search, startDate, endDate, limit } = query;
+
+    const whereClause: Prisma.OutletWhereInput = {
+      deletedAt: null,
+    };
+
+    if (outletId) {
+      whereClause.id = outletId;
+    }
+
+    if (search) {
+      whereClause.name = { contains: search, mode: "insensitive" };
+    }
+
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        gte: startDate ? new Date(startDate) : undefined,
+        lte: endDate ? new Date(endDate) : undefined,
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
     const outlets = await this.prisma.outlet.findMany({
+      skip,
+      take: limit,
+      where: whereClause,
       include: {
         admin: { select: { name: true } },
         orders: true,
         workers: true,
         drivers: true,
       },
-      where: {
-        deletedAt: null,
+      orderBy: {
+        createdAt: "desc",
       },
     });
-    return { message: "Outets fetched successfully", data: outlets };
+
+    const total = await this.prisma.outlet.count({
+      where: whereClause,
+    });
+
+    return {
+      message: "Outlets fetched successfully",
+      data: outlets,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   };
 
   getOutlet = async (id: string) => {
