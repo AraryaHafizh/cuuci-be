@@ -156,6 +156,11 @@ export class UserUpdateService {
       updateData.phoneNumber = body.phoneNumber;
     }
 
+    if (body.password) {
+      hashPassword(body.password);
+      updateData.password = body.password;
+    }
+
     if (profilePictureUrl) {
       if (user.profilePictureUrl) {
         await this.cloudinaryService.remove(user.profilePictureUrl);

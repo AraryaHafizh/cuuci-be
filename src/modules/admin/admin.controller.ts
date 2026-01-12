@@ -11,14 +11,16 @@ export class AdminContorller {
   }
   getOrders = async (req: any, res: any) => {
     const adminId = String(res.locals.user.id);
+    const role = String(res.locals.user.role);
     const query = plainToInstance(Orders, req.query);
-    const orders = await this.adminService.getOrders(adminId, query);
+    const orders = await this.adminService.getOrders(adminId,role, query);
     res.status(200).json(orders);
   };
   getOrder = async (req: any, res: any) => {
     const adminId = String(res.locals.user.id);
+    const role = String(res.locals.user.role);
     const id = req.params.id;
-    const order = await this.adminService.getOrder(adminId, id);
+    const order = await this.adminService.getOrder(adminId, id, role);
     res.status(200).json(order);
   };
   getArrivedOrders = async (req: any, res: any) => {
