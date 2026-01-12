@@ -2,6 +2,7 @@ import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { hashPassword } from "../../utils/password";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
+import { DriverService } from "../drivers/driver.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserUpdatePasswordDTO } from "./dto/user-update-password.dto";
@@ -12,11 +13,13 @@ export class UserUpdateService {
   private prisma: PrismaService;
   private cloudinaryService: CloudinaryService;
   private outletService: OutletService;
+  private driverService: DriverService;
 
   constructor() {
     this.prisma = new PrismaService();
     this.cloudinaryService = new CloudinaryService();
     this.outletService = new OutletService();
+    this.driverService = new DriverService();
   }
 
   getUsers = async (query: Users) => {
@@ -90,38 +93,64 @@ export class UserUpdateService {
     };
   };
 
-  getUser = async (id: string) => {
-    const user = await this.prisma.user.findFirst({ where: { id } });
+  getUser = async (id: string, query: Users) => {
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
 
+    const user = await this.prisma.user.findFirst({ where: { id } });
     if (!user) throw new ApiError("User not found", 404);
 
     let task: any[] = [];
+    let total = 0;
 
     switch (user.role) {
       case "DRIVER": {
-        const driver = await this.prisma.driver.findFirst({
-          where: { driverId: id },
-          include: {
-            pickupOrders: { include: { order: true } },
-            deliveryOrders: { include: { order: true } },
-          },
+        const history = await this.driverService.getRequestsHistory(id, {
+          page,
+          limit,
+          take: limit,
+          search: "",
+          sortBy: "createdAt",
+          sortOrder: "desc",
         });
 
-        if (driver) {
-          task = [...driver.pickupOrders, ...driver.deliveryOrders];
-        }
+        task = history.data;
+        total = history.meta.total;
         break;
       }
 
       case "WORKER": {
         const worker = await this.prisma.worker.findFirst({
           where: { workerId: id },
-          include: { orderWorkProcesses: { include: { order: true } } },
         });
 
         if (worker) {
-          task = worker.orderWorkProcesses;
+          task = await this.prisma.orderWorkProcess.findMany({
+            where: { workerId: worker.id },
+            skip,
+            take: limit,
+            include: { order: true },
+          });
+
+          total = await this.prisma.orderWorkProcess.count({
+            where: { workerId: worker.id },
+          });
         }
+        break;
+      }
+
+      case "CUSTOMER": {
+        task = await this.prisma.order.findMany({
+          where: { customerId: id },
+          skip,
+          take: limit,
+          include: { payment: true },
+          orderBy: { createdAt: "desc" },
+        });
+
+        total = await this.prisma.order.count({
+          where: { customerId: id },
+        });
         break;
       }
     }
@@ -130,7 +159,13 @@ export class UserUpdateService {
       message: "User fetched successfully",
       data: {
         user,
-        task, // <-- sekarang selalu array
+        task,
+      },
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   };

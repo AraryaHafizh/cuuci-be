@@ -122,12 +122,30 @@ export class AttendanceService {
       if (dto.to) where.checkIn.lte = new Date(dto.to);
     }
 
-    const list = await this.prisma.attendance.findMany({
-      where,
-      orderBy: { checkIn: "desc" },
-    });
+    const page = dto?.page ?? 1;
+    const take = dto?.take ?? 10;
+    const skip = (page - 1) * take;
 
-    return list;
+    const [list, total] = await Promise.all([
+      this.prisma.attendance.findMany({
+        where,
+        orderBy: { checkIn: "desc" },
+        skip,
+        take,
+      }),
+      this.prisma.attendance.count({ where }),
+    ]);
+
+    return {
+      message: "Attendance logs fetched successfully",
+      data: list,
+      meta: {
+        page,
+        take,
+        total,
+        totalPages: Math.ceil(total / take),
+      },
+    };
   };
 
   // GET /attendance/report?outletId=&from=&to=
