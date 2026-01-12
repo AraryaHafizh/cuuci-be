@@ -10,21 +10,33 @@ export class SummaryRouter {
 
   constructor() {
     this.router = Router();
-    this.jwtMiddleware = new JwtMiddleware()
-    this.summaryController = new SummaryController()
+    this.jwtMiddleware = new JwtMiddleware();
+    this.summaryController = new SummaryController();
     this.initializedRoutes();
   }
 
   private initializedRoutes = () => {
     this.router.get(
-      "/outlet/summary",
+      "/metrics",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
-      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN"]),
-      this.summaryController.getOutletSummary
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN", "SUPER_ADMIN"]),
+      this.summaryController.getMetrics
+    );
+    this.router.get(
+      "/outlet-overview",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN"]),
+      this.summaryController.useOutletOverview
+    );
+    this.router.get(
+      "/order-overview",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN", "SUPER_ADMIN"]),
+      this.summaryController.getOrderOverview
     );
   };
 
   getRouter = () => {
     return this.router;
-  }
+  };
 }

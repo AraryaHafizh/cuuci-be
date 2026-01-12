@@ -11,10 +11,23 @@ export class SummaryController {
     this.summaryService = new SummaryService();
   }
 
-  getOutletSummary = async (req: Request, res: Response) => {
-    const outletId = res.locals.user;
-    const result = await this.summaryService.getOutletSummary(outletId);
+  getMetrics = async (req: Request, res: Response) => {
+    const userId = res.locals.user.id;
+    const role = res.locals.user.role;
+    const result = await this.summaryService.getMetrics(userId, role);
 
+    res.status(200).send(result);
+  };
+
+  useOutletOverview = async (req: Request, res: Response) => {
+    const result = await this.summaryService.useOutletOverview();
+    res.status(200).send(result);
+  };
+
+  getOrderOverview = async (req: Request, res: Response) => {
+    const userId = res.locals.user.id;
+    const role = res.locals.user.role;
+    const result = await this.summaryService.getOrderOverview(userId, role);
     res.status(200).send(result);
   };
 }
