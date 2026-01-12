@@ -157,6 +157,7 @@ model LaundryItem {
   name       String
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
   orderItems OrderItem[]
 
   @@map("laundry_items")

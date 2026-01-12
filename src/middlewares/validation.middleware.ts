@@ -6,7 +6,6 @@ import { ApiError } from "../utils/api-error";
 export const validateBody = (dtoClass: any) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const dtoInstance = plainToInstance(dtoClass, req.body);
-
     const errors = await validate(dtoInstance);
 
     if (errors.length > 0) {

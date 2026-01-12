@@ -43,7 +43,6 @@ export class UserUpdateRouter {
       validateBody(UserUpdateDTO),
       this.userUpdateController.userUpdate
     );
-
     this.router.patch(
       "/update-password",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),

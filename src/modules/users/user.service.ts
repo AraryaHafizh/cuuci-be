@@ -181,7 +181,7 @@ export class UserUpdateService {
   };
 
   userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
-    console.log('Received body:', body);
+  console.log('Received body:', body);
   console.log('Body type:', typeof body);
   console.log('oldPassword type:', typeof body.oldPassword);
   console.log('newPassword type:', typeof body.newPassword);
