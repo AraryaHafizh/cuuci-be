@@ -18,7 +18,8 @@ export class UserUpdateController {
 
   getUser = async (req: Request, res: Response) => {
     const id = req.params.id;
-    const result = await this.userUpdateservice.getUser(id);
+    const query = plainToInstance(Users, req.query);
+    const result = await this.userUpdateservice.getUser(id, query);
     res.status(200).send(result);
   };
 

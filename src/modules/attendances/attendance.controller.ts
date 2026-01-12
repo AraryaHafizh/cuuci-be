@@ -78,7 +78,7 @@ export class AttendanceController {
       }
 
       const list = await service.getUserAttendanceLog(id, dto);
-      return res.status(200).json({ success: true, data: list });
+      return res.status(200).send(list);
     } catch (err: any) {
       return next(err);
     }
