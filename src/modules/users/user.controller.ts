@@ -43,7 +43,7 @@ export class UserUpdateController {
   };
 
   userUpdatePassword = async (req: Request, res: Response) => {
-    const userId = req.params.id;
+    const { id: userId } = res.locals.user;
     const body = req.body;
     const result = await this.userUpdateservice.userUpdatePassword(
       userId,

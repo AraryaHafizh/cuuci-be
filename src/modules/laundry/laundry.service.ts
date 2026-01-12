@@ -10,7 +10,9 @@ export class LaundryService {
   }
 
   getLaundryItems = async () => {
-    const laundryItems = await this.prisma.laundryItem.findMany();
+    const laundryItems = await this.prisma.laundryItem.findMany({
+      where: { deletedAt: null },
+    });
     if (!laundryItems) throw new ApiError("No laundry items found", 404);
 
     return {
@@ -33,7 +35,10 @@ export class LaundryService {
   };
 
   deleteLaundryItem = async (id: string) => {
-    await this.prisma.laundryItem.delete({ where: { id } });
+    await this.prisma.laundryItem.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
 
     return { message: "Laundry item deleted successfully" };
   };

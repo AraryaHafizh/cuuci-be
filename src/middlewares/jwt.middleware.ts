@@ -16,7 +16,7 @@ export class JwtMiddleware {
         if (err) {
           throw new ApiError("Invalid token or expired token", 401);
         }
-
+        
         res.locals.user = payload;
         next();
       });

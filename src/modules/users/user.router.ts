@@ -43,9 +43,8 @@ export class UserUpdateRouter {
       validateBody(UserUpdateDTO),
       this.userUpdateController.userUpdate
     );
-
     this.router.patch(
-      "/update-password/:id",
+      "/update-password",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
       validateBody(UserUpdatePasswordDTO),

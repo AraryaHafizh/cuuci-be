@@ -1,6 +1,6 @@
 import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
-import { hashPassword } from "../../utils/password";
+import { comparePassword, hashPassword } from "../../utils/password";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { DriverService } from "../drivers/driver.service";
 import { OutletService } from "../outlets/outlet.service";
@@ -221,25 +221,33 @@ export class UserUpdateService {
   };
 
   userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
-    const user = await this.prisma.user.findFirst({
-      where: { id: userId },
-    });
+  console.log('Received body:', body);
+  console.log('Body type:', typeof body);
+  console.log('oldPassword type:', typeof body.oldPassword);
+  console.log('newPassword type:', typeof body.newPassword);
+  const user = await this.prisma.user.findFirst({
+    where: { id: userId },
+  });
 
-    if (!user) throw new ApiError("user not found", 404);
-
-    const updateData: any = {};
-    if (body.password) {
-      const hashedPassword = await hashPassword(body.password);
-      updateData.password = hashedPassword;
+  if (!user) throw new ApiError("User not found", 404);
+  
+  // Verify old password
+  if (body.oldPassword) {
+    const isValid = await comparePassword(body.oldPassword, user.password);
+    if (!isValid) {
+      throw new ApiError("Current password is incorrect", 400);
     }
+  }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
+  const hashedPassword = await hashPassword(body.newPassword);
 
-    return { message: "update user success" };
-  };
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { password: hashedPassword },
+  });
+
+  return { message: "Password updated successfully" };
+};
 
   deleteUser = async (userId: string) => {
     const user = await this.prisma.user.findFirst({
