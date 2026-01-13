@@ -102,6 +102,7 @@ export class UserUpdateService {
 
     let task: any[] = [];
     let total = 0;
+    let summary: any = {};
 
     switch (user.role) {
       case "DRIVER": {
@@ -116,6 +117,16 @@ export class UserUpdateService {
 
         task = history.data;
         total = history.meta.total;
+
+        const finishedStatuses = ["COMPLETED", "ARRIVED_AT_OUTLET"];
+
+        summary = {
+          totalDeliveries: task.length,
+          finishedDeliveries: task.filter((t) =>
+            finishedStatuses.includes(t.status)
+          ).length,
+        };
+
         break;
       }
 
@@ -135,7 +146,13 @@ export class UserUpdateService {
           total = await this.prisma.orderWorkProcess.count({
             where: { workerId: worker.id },
           });
+
+          summary = {
+            totalTasks: total,
+            finishedTasks: task.filter((t) => t.status === "COMPLETED").length,
+          };
         }
+
         break;
       }
 
@@ -151,6 +168,10 @@ export class UserUpdateService {
         total = await this.prisma.order.count({
           where: { customerId: id },
         });
+
+        summary = {
+          totalOrders: total,
+        };
         break;
       }
     }
@@ -160,6 +181,7 @@ export class UserUpdateService {
       data: {
         user,
         task,
+        summary,
       },
       meta: {
         page,
@@ -221,33 +243,33 @@ export class UserUpdateService {
   };
 
   userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
-  console.log('Received body:', body);
-  console.log('Body type:', typeof body);
-  console.log('oldPassword type:', typeof body.oldPassword);
-  console.log('newPassword type:', typeof body.newPassword);
-  const user = await this.prisma.user.findFirst({
-    where: { id: userId },
-  });
+    console.log("Received body:", body);
+    console.log("Body type:", typeof body);
+    console.log("oldPassword type:", typeof body.oldPassword);
+    console.log("newPassword type:", typeof body.newPassword);
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId },
+    });
 
-  if (!user) throw new ApiError("User not found", 404);
-  
-  // Verify old password
-  if (body.oldPassword) {
-    const isValid = await comparePassword(body.oldPassword, user.password);
-    if (!isValid) {
-      throw new ApiError("Current password is incorrect", 400);
+    if (!user) throw new ApiError("User not found", 404);
+
+    // Verify old password
+    if (body.oldPassword) {
+      const isValid = await comparePassword(body.oldPassword, user.password);
+      if (!isValid) {
+        throw new ApiError("Current password is incorrect", 400);
+      }
     }
-  }
 
-  const hashedPassword = await hashPassword(body.newPassword);
+    const hashedPassword = await hashPassword(body.newPassword);
 
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: { password: hashedPassword },
-  });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
 
-  return { message: "Password updated successfully" };
-};
+    return { message: "Password updated successfully" };
+  };
 
   deleteUser = async (userId: string) => {
     const user = await this.prisma.user.findFirst({
