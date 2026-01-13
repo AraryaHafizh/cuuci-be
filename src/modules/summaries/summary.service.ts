@@ -96,12 +96,12 @@ export class SummaryService {
       const totalDrivers = outlet.drivers.length;
 
       data.revenue = totalRevenue;
-      data.totalOrders = totalOrders;
-      data.totalWorkers = totalWorkers;
-      data.totalDrivers = totalDrivers;
-      data.totalPickupOrders = totalPickupOrders;
-      data.totalDeliveryOrders = totalDeliveryOrders;
-      data.totalOrderWorkProcesses = totalOrderWorkProcesses;
+      data.orders = totalOrders;
+      data.workers = totalWorkers;
+      data.drivers = totalDrivers;
+      data.pickup = totalPickupOrders;
+      data.delivery = totalDeliveryOrders;
+      data.inProgress = totalOrderWorkProcesses;
     }
 
     return {
@@ -170,6 +170,53 @@ export class SummaryService {
     return {
       message: "Order status overview fetched successfully",
       data: statusOverview,
+    };
+  };
+
+  getWorkerActivity = async (userId: string) => {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { adminId: userId },
+      include: {
+        workers: {
+          select: {
+            id: true,
+            worker: { select: { name: true, deletedAt: true } },
+            station: true,
+          },
+        },
+        drivers: {
+          select: {
+            id: true,
+            driver: { select: { name: true, deletedAt: true } },
+            currentPickupOrderId: true,
+            currentDeliveryOrderId: true,
+          },
+        },
+      },
+    });
+
+    if (!outlet) throw new ApiError("Outlet not found", 404);
+
+    const workers = outlet.workers
+      .filter((w) => w.worker && w.worker.deletedAt === null)
+      .map((worker) => ({
+        id: worker.id,
+        name: worker.worker.name,
+        station: worker.station,
+      }));
+
+    const drivers = outlet.drivers
+      .filter((d) => d.driver && d.driver.deletedAt === null)
+      .map((driver) => ({
+        id: driver.id,
+        name: driver.driver.name,
+        pickup: driver.currentPickupOrderId,
+        delivery: driver.currentDeliveryOrderId,
+      }));
+
+    return {
+      message: "Worker activity fetched successfully",
+      data: { workers, drivers },
     };
   };
 }

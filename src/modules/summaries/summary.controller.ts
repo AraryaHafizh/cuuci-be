@@ -30,4 +30,10 @@ export class SummaryController {
     const result = await this.summaryService.getOrderOverview(userId, role);
     res.status(200).send(result);
   };
+
+  getWorkerActivity = async (req: Request, res: Response) => {
+    const userId = res.locals.user.id;
+    const result = await this.summaryService.getWorkerActivity(userId);
+    res.status(200).send(result);
+  };
 }

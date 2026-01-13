@@ -30,6 +30,23 @@ export class AdminService {
     this.prisma = new PrismaService();
   }
 
+  getAdminDetail = async (id: string) => {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { adminId: id },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (!outlet) throw new ApiError("No outlet found", 404);
+
+    return {
+      message: "Outlet detail fetched successfully",
+      data: outlet,
+    };
+  };
+
   getOrders = async (adminId: string, role: string, query: Orders) => {
     const {
       orderId,
@@ -77,6 +94,7 @@ export class AdminService {
         createdAt: "desc",
       },
       include: {
+        outlet: { select: { name: true } },
         customer: { select: { name: true } },
       },
     });
