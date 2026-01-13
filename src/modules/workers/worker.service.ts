@@ -150,7 +150,7 @@ export class WorkerService {
             orderItems: {
               select: {
                 laundryItemId: true,
-                quantity: true,
+                // quantity: true,
                 laundryItem: { select: { name: true } },
               },
             },
