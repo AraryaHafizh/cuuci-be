@@ -74,6 +74,16 @@ export class AddressService {
     };
   };
 
+  getAddress = async (addressId: string, userId: string) => {
+    const address = await this.prisma.address.findFirst({
+      where: { id: addressId, userId: userId },
+      include: { user: true },
+    });
+    if (!address) throw new ApiError("Address not found", 404);
+
+    return { message: "Address fetched successfully", data: address };
+  };
+
   createAddress = async (data: createDTO, userId: string) => {
     const addressCount = await this.prisma.address.count({
       where: { userId, isDeleted: false },
@@ -106,19 +116,36 @@ export class AddressService {
   };
 
   updateAddress = async (addressId: string, userId: string, dto: updateDTO) => {
-    // TODO: cant update address when in used
     await this.validateAddressOwnership(addressId, userId);
 
-    if (dto.isPrimary) {
-      await this.prisma.address.updateMany({
-        where: { userId },
-        data: { isPrimary: false },
-      });
+    const activeOrder = await this.prisma.order.findFirst({
+      where: {
+        addressId,
+        status: {
+          notIn: ["COMPLETED", "CANCELLED"],
+        },
+      },
+    });
+
+    if (activeOrder) {
+      throw new ApiError(
+        "Address cannot be updated while used in an active order",
+        409
+      );
     }
 
-    const updated = await this.prisma.address.update({
-      where: { id: addressId },
-      data: dto,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.isPrimary) {
+        await tx.address.updateMany({
+          where: { userId },
+          data: { isPrimary: false },
+        });
+      }
+
+      return tx.address.update({
+        where: { id: addressId },
+        data: dto,
+      });
     });
 
     return {
@@ -128,20 +155,37 @@ export class AddressService {
   };
 
   deleteAddress = async (addressId: string, userId: string) => {
-    // TODO: cant update address when in used
     const address = await this.validateAddressOwnership(addressId, userId);
 
-    const addresses = await this.prisma.address.findMany({
+    const activeOrder = await this.prisma.order.findFirst({
       where: {
-        userId,
-        isDeleted: false,
-      },
-      orderBy: {
-        createdAt: "asc",
+        addressId,
+        status: {
+          notIn: ["COMPLETED", "CANCELLED"],
+        },
       },
     });
 
+    if (activeOrder) {
+      throw new ApiError(
+        "Address cannot be deleted while used in an active order",
+        409
+      );
+    }
+
     await this.prisma.$transaction(async (tx) => {
+      const addresses = await tx.address.findMany({
+        where: {
+          userId,
+          isDeleted: false,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+      if (addresses.length === 1) {
+        throw new ApiError("User must have at least one address", 400);
+      }
       await tx.address.update({
         where: { id: addressId },
         data: {
@@ -149,10 +193,10 @@ export class AddressService {
           isPrimary: false,
         },
       });
-
       if (address.isPrimary) {
-        const newPrimary = addresses.find((a) => a.id !== addressId);
-
+        const newPrimary = addresses.find(
+          (a) => a.id !== addressId && !a.isPrimary
+        );
         if (newPrimary) {
           await tx.address.update({
             where: { id: newPrimary.id },

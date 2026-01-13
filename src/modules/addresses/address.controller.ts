@@ -19,6 +19,13 @@ export class AddressController {
     res.status(200).send(result);
   };
 
+  getAddress = async (req: Request, res: Response) => {
+    const { id: addressId } = req.params;
+    const userId = String(res.locals.user.id);
+    const result = await this.addressService.getAddress(addressId, userId);
+    res.status(200).send(result);
+  };
+
   createAddress = async (req: Request, res: Response) => {
     const userId = String(res.locals.user.id);
     const payload = req.body as createDTO;

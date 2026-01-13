@@ -73,7 +73,7 @@ export class OutletService {
 
     if (!outlet) throw new ApiError("Outlet not found", 404);
 
-    return { message: "Outets fetched successfully", data: outlet };
+    return { message: "Outlets fetched successfully", data: outlet };
   };
 
   getNearestOutlet = async (
