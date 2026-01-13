@@ -34,6 +34,12 @@ export class SummaryRouter {
       this.jwtMiddleware.verifyRole(["OUTLET_ADMIN", "SUPER_ADMIN"]),
       this.summaryController.getOrderOverview
     );
+    this.router.get(
+      "/worker-activity",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["OUTLET_ADMIN", "SUPER_ADMIN"]),
+      this.summaryController.getWorkerActivity
+    );
   };
 
   getRouter = () => {
