@@ -25,6 +25,12 @@ export class Addressrouter {
       this.jwtMiddleware.verifyRole(["CUSTOMER"]),
       this.addressController.getAddresses
     );
+    this.router.get(
+      "/:id",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["CUSTOMER"]),
+      this.addressController.getAddress
+    );
     this.router.post(
       "/create",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
