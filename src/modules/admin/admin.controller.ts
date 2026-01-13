@@ -46,7 +46,8 @@ export class AdminContorller {
   };
   resolveBypass = async (req: any, res: any) => {
     const id = req.params.id;
-    const orders = await this.adminService.resolveBypass(id);
+    const items = req.body.items;
+    const orders = await this.adminService.resolveBypass(id, items);
     res.status(200).json(orders);
   };
 }

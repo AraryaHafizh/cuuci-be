@@ -240,7 +240,17 @@ export class AdminService {
       where: { outletId: outlet!.id, status: "BYPASS_REQUESTED" },
       include: {
         order: {
-          select: { orderNumber: true, notes: { where: { type: "BYPASS" } } },
+          select: {
+            orderNumber: true,
+            notes: { where: { type: "BYPASS" }, select: { body: true } },
+            orderItems: {
+              select: {
+                laundryItemId: true,
+                quantity: true,
+                laundryItem: { select: { name: true } },
+              },
+            },
+          },
         },
         worker: { select: { worker: { select: { name: true } } } },
       },
@@ -249,9 +259,46 @@ export class AdminService {
       },
     });
 
+    const transformed = orders.map((item) => {
+      const rawNote = item.order.notes[0];
+      const parsed = JSON.parse(rawNote.body!);
+
+      const items = parsed.item.map((noteItem: any) => {
+        const original = item.order.orderItems.find(
+          (oi) => oi.laundryItemId === noteItem.id
+        );
+
+        const originalQty = original?.quantity || 0;
+
+        return {
+          id: noteItem.id,
+          name: noteItem.name,
+          qty: noteItem.qty,
+          originalQty,
+          difference: originalQty - noteItem.qty,
+        };
+      });
+
+      const { orderItems, ...cleanOrder } = item.order;
+
+      return {
+        ...item,
+        order: {
+          ...cleanOrder,
+          notes: [
+            {
+              ...rawNote,
+              body: parsed.note,
+              items,
+            },
+          ],
+        },
+      };
+    });
+
     return {
       message: "Bypass requested orders fetched successfully",
-      data: orders,
+      data: transformed,
     };
   };
 
@@ -318,7 +365,7 @@ export class AdminService {
     return { message: "Create task success!" };
   };
 
-  resolveBypass = async (id: string) => {
+  resolveBypass = async (id: string, items: any) => {
     const order = await this.prisma.orderWorkProcess.findUnique({
       where: { id },
       include: {
@@ -350,6 +397,20 @@ export class AdminService {
       const notes = await tx.notes.findFirst({
         where: { orderId: order.orderId, type: "INSTRUCTION" },
       });
+
+      if (items?.length) {
+        for (const item of items) {
+          await tx.orderItem.updateMany({
+            where: {
+              orderId: order.orderId,
+              laundryItemId: item.id,
+            },
+            data: {
+              quantity: item.qty,
+            },
+          });
+        }
+      }
 
       await tx.orderWorkProcess.update({
         where: { id },
