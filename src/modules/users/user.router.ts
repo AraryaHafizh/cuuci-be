@@ -36,9 +36,10 @@ export class UserUpdateRouter {
         .upload()
         .fields([{ name: "profilePictureUrl", maxCount: 1 }]),
       this.uploaderMiddleware.fileFilter([
+        "image/heic",
         "image/jpeg",
         "image/png",
-        "image/heic",
+        "image/gif",
       ]),
       validateBody(UserUpdateDTO),
       this.userUpdateController.userUpdate

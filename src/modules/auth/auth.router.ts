@@ -36,6 +36,10 @@ export class AuthRouter {
       this.jwtMiddleware.verifyToken(JWT_SECRET_VERIFY!),
       this.authController.emailVerification
     );
+    this.router.get(
+      "/verify-email-update/:token",
+      this.authController.verifyEmailUpdate
+    );
     this.router.post(
       "/login",
       validateBody(LoginDTO),

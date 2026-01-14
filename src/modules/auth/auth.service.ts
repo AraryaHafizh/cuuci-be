@@ -1,5 +1,5 @@
 import axios from "axios";
-import { sign } from "jsonwebtoken";
+import { sign, verify } from "jsonwebtoken";
 import {
   BASE_URL_FE,
   JWT_SECRET,
@@ -138,6 +138,52 @@ export class AuthService {
 
     return { message: "Email verified successfully" };
   };
+
+  verifyEmailUpdate = async (token: string) => {
+    const decoded = verify(token, JWT_SECRET_VERIFY!) as {
+      id: string;
+      type: string;
+      newEmail: string;
+    };
+    
+    if (decoded.type !== "emailUpdate") {
+      throw new ApiError("Invalid token type", 400);
+    }
+    
+    const user = await this.prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+    
+    if (!user) throw new ApiError("User not found", 404);
+    
+    if (user.pendingEmail !== decoded.newEmail) {
+      throw new ApiError("Email verification mismatch", 400);
+    }
+    
+    const emailTaken = await this.prisma.user.findFirst({
+      where: { 
+        email: decoded.newEmail,
+        NOT: { id: decoded.id }
+      },
+    });
+    
+    if (emailTaken) {
+      throw new ApiError("Email already taken", 400);
+    }
+    
+    await this.prisma.user.update({
+      where: { id: decoded.id },
+      data: {
+        email: decoded.newEmail,
+        pendingEmail: null,
+        emailVerified: true,
+        verifiedAt: new Date(),
+      },
+    });
+    
+    return { message: "Email updated successfully" };
+  
+};
 
   login = async (body: LoginDTO) => {
     const user = await this.prisma.user.findFirst({

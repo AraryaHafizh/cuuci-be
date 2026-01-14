@@ -8,7 +8,7 @@ export class UploaderMiddleware {
   upload = () => {
     const storage = multer.memoryStorage();
 
-    const limits = { fileSize: 2 * 1024 * 1024 };
+    const limits = { fileSize: 1024 * 1024 };
 
     return multer({ storage, limits });
   };
