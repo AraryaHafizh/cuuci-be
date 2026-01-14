@@ -304,6 +304,8 @@ export class AdminService {
 
   assignOrderToWorkers = async (orderId: string, body: CreateDTO) => {
     const { totalPrice, totalWeight, orderItems } = body;
+    const finalPrice = totalPrice + 10000;
+
     await this.prisma.$transaction(async (tx) => {
       const notes = await tx.notes.findFirst({
         where: { orderId, type: "INSTRUCTION" },
@@ -312,7 +314,7 @@ export class AdminService {
       const order = await tx.order.update({
         where: { id: orderId },
         data: {
-          totalPrice,
+          totalPrice: finalPrice,
           totalWeight,
         },
       });

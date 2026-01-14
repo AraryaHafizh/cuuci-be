@@ -1,4 +1,4 @@
-import { OrderStatus, Role } from "../../generated/prisma/enums";
+import { Role } from "../../generated/prisma/enums";
 import { ApiError } from "../../utils/api-error";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -27,6 +27,7 @@ export class SummaryService {
 
       const users = await this.prisma.user.groupBy({
         by: ["role"],
+        where: { deletedAt: null },
         _count: { role: true },
       });
 
