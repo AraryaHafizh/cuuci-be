@@ -42,10 +42,13 @@ export class OutletService {
       take: limit,
       where: whereClause,
       include: {
-        admin: { select: { name: true } },
+        admin: {
+          where: { deletedAt: null },
+          select: { name: true },
+        },
+        workers: { where: { worker: { deletedAt: null } } },
+        drivers: { where: { driver: { deletedAt: null } } },
         orders: true,
-        workers: true,
-        drivers: true,
       },
       orderBy: {
         createdAt: "desc",
