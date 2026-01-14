@@ -62,8 +62,14 @@ export class SummaryService {
               orderWorkProcesses: { select: { id: true } },
             },
           },
-          workers: { select: { id: true } },
-          drivers: { select: { id: true } },
+          workers: {
+            where: { worker: { deletedAt: null } },
+            select: { id: true },
+          },
+          drivers: {
+            where: { driver: { deletedAt: null } },
+            select: { id: true },
+          },
         },
       });
 
