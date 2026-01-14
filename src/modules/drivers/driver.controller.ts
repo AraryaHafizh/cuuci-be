@@ -12,6 +12,18 @@ export class DriverContorller {
     this.driverService = new DriverService();
   }
 
+  getSelf = async (req: Request, res: Response) => {
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getSelf(driverId);
+    res.status(200).send(result);
+  }
+
+  getCompleted = async (req: Request, res: Response) => {
+    const driverId = String(res.locals.user.id);
+    const result = await this.driverService.getCompleted(driverId);
+    res.status(200).send(result);
+  };
+
   getDrivers = async (req: Request, res: Response) => {
     const query = plainToInstance(Drivers, req.query);
     const result = await this.driverService.getDrivers(query);

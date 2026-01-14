@@ -145,32 +145,32 @@ export class AuthService {
       type: string;
       newEmail: string;
     };
-    
+
     if (decoded.type !== "emailUpdate") {
       throw new ApiError("Invalid token type", 400);
     }
-    
+
     const user = await this.prisma.user.findUnique({
       where: { id: decoded.id },
     });
-    
+
     if (!user) throw new ApiError("User not found", 404);
-    
+
     if (user.pendingEmail !== decoded.newEmail) {
       throw new ApiError("Email verification mismatch", 400);
     }
-    
+
     const emailTaken = await this.prisma.user.findFirst({
-      where: { 
+      where: {
         email: decoded.newEmail,
-        NOT: { id: decoded.id }
+        NOT: { id: decoded.id },
       },
     });
-    
+
     if (emailTaken) {
       throw new ApiError("Email already taken", 400);
     }
-    
+
     await this.prisma.user.update({
       where: { id: decoded.id },
       data: {
@@ -180,10 +180,9 @@ export class AuthService {
         verifiedAt: new Date(),
       },
     });
-    
+
     return { message: "Email updated successfully" };
-  
-};
+  };
 
   login = async (body: LoginDTO) => {
     const user = await this.prisma.user.findFirst({
@@ -196,6 +195,9 @@ export class AuthService {
 
     if (user.emailVerified === false) {
       throw new ApiError("Email not verified", 401);
+    }
+    if (user.deletedAt !== null) {
+      throw new ApiError("Invalid credentials", 401);
     }
 
     const isPasswordValid = await comparePassword(

@@ -21,6 +21,46 @@ export class DriverService {
     this.attendanceService = new AttendanceService();
   }
 
+  getSelf = async (id: string) => {
+    const outlet = await this.prisma.driver.findFirst({
+      where: { driverId: id },
+      select: {
+        driver: { select: { name: true } },
+        outlet: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!outlet) throw new ApiError("No outlet found", 404);
+
+    return {
+      message: "Outlet detail fetched successfully",
+      data: outlet,
+    };
+  };
+
+  getCompleted = async (driverId: string) => {
+    const driver = await this.prisma.driver.findUnique({
+      where: { driverId },
+    });
+
+    if (!driver) throw new ApiError("Driver not found", 404);
+
+    const pickupCount = await this.prisma.pickupOrder.count({
+      where: { driverId: driver.id, status: "ARRIVED_AT_OUTLET" },
+    });
+
+    const deliveryCount = await this.prisma.deliveryOrder.count({
+      where: { driverId: driver.id, status: "COMPLETED" },
+    });
+
+    const total = pickupCount + deliveryCount;
+
+    return {
+      message: "Overview fetched successfully",
+      data: total,
+    };
+  };
+
   getDrivers = async (query: Drivers) => {
     const { id, outletId, page, startDate, endDate, limit } = query;
     const whereClause: Prisma.DriverWhereInput = {};
@@ -97,35 +137,34 @@ export class DriverService {
     };
   };
 
-getRequests = async (driverId: string) => {
-  const outlet = await this.prisma.driver.findFirst({
-    where: { driverId },
-  });
+  getRequests = async (driverId: string) => {
+    const outlet = await this.prisma.driver.findFirst({
+      where: { driverId },
+    });
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
 
-  const requests = await this.prisma.order.findMany({
-    where: {
-      status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
-      outletId: outlet?.outletId,
-      pickupTime: {
-        gte: startOfToday,
-        lte: endOfToday,
+    const requests = await this.prisma.order.findMany({
+      where: {
+        status: { in: ["LOOKING_FOR_DRIVER", "READY_FOR_DELIVERY"] },
+        outletId: outlet?.outletId,
+        pickupTime: {
+          gte: startOfToday,
+          lte: endOfToday,
+        },
       },
-    },
-    include: { address: true, customer: true, outlet: true },
-  });
+      include: { address: true, customer: true, outlet: true },
+    });
 
-  return {
-    message: "Requests fetched successfully",
-    data: requests,
+    return {
+      message: "Requests fetched successfully",
+      data: requests,
+    };
   };
-};
-
 
   getRequestsHistory = async (driverId: string, query: GetHistoryDTO) => {
     const { search, startDate, endDate, page, limit, status, type } = query;
@@ -197,6 +236,7 @@ getRequests = async (driverId: string) => {
               customer: { select: { name: true } },
             },
           },
+          outlet: { select: { name: true } },
         },
       });
     } else if (type === "DELIVERY") {
@@ -222,6 +262,7 @@ getRequests = async (driverId: string) => {
                 customer: { select: { name: true } },
               },
             },
+            outlet: { select: { name: true } },
           },
         }),
 

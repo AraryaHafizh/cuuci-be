@@ -207,7 +207,7 @@ export class UserUpdateService {
     if (!user) throw new ApiError("user not found", 404);
 
     const updateData: any = {};
-    let emailUpdateMessage = false; 
+    let emailUpdateMessage = false;
     if (body.name) {
       updateData.name = body.name;
     }
@@ -274,9 +274,9 @@ export class UserUpdateService {
     });
 
     return {
-      message: emailUpdateMessage 
-      ? "Verification email sent to your new email address" 
-      : "Profile updated successfully",
+      message: emailUpdateMessage
+        ? "Verification email sent to your new email address"
+        : "Profile updated successfully",
       data: updatedUser,
     };
   };
@@ -312,6 +312,13 @@ export class UserUpdateService {
 
     if (!user) {
       throw new ApiError("User not found", 404);
+    }
+
+    if (user.role === "OUTLET_ADMIN") {
+      await this.prisma.outlet.update({
+        where: { adminId: userId },
+        data: { adminId: null },
+      });
     }
 
     await this.prisma.user.update({

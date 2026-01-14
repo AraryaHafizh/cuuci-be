@@ -26,6 +26,18 @@ export class DriverRouter {
       this.driverController.getDrivers
     );
     this.router.get(
+      "/completed",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["SUPER_ADMIN", "OUTLET_ADMIN", "DRIVER"]),
+      this.driverController.getCompleted
+    );
+    this.router.get(
+      "/self",
+      this.jwtMiddleware.verifyToken(JWT_SECRET!),
+      this.jwtMiddleware.verifyRole(["DRIVER"]),
+      this.driverController.getSelf
+    );
+    this.router.get(
       "/requests",
       this.jwtMiddleware.verifyToken(JWT_SECRET!),
       this.jwtMiddleware.verifyRole(["DRIVER"]),
