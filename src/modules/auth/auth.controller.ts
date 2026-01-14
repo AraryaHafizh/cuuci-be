@@ -19,6 +19,12 @@ export class AuthController {
     return res.status(200).send(result);
   };
 
+  verifyEmailUpdate = async (req: Request, res: Response) => {
+  const token = req.params.token;
+  const result = await this.authService.verifyEmailUpdate(token);
+  res.status(200).send(result);
+};
+
   login = async (req: Request, res: Response) => {
     const result = await this.authService.login(req.body);
     res.status(200).send(result);

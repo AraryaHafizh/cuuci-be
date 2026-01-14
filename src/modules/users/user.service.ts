@@ -1,8 +1,10 @@
-import { Role } from "../../generated/prisma/enums";
+import { sign } from "jsonwebtoken";
+import { BASE_URL_FE, JWT_SECRET_VERIFY } from "../../config/env";
 import { ApiError } from "../../utils/api-error";
 import { comparePassword, hashPassword } from "../../utils/password";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 import { DriverService } from "../drivers/driver.service";
+import { MailService } from "../mail/mail.service";
 import { OutletService } from "../outlets/outlet.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserUpdatePasswordDTO } from "./dto/user-update-password.dto";
@@ -14,12 +16,14 @@ export class UserUpdateService {
   private cloudinaryService: CloudinaryService;
   private outletService: OutletService;
   private driverService: DriverService;
+  private mailservice: MailService;
 
   constructor() {
     this.prisma = new PrismaService();
     this.cloudinaryService = new CloudinaryService();
     this.outletService = new OutletService();
     this.driverService = new DriverService();
+    this.mailservice = new MailService();
   }
 
   getUsers = async (query: Users) => {
@@ -200,60 +204,90 @@ export class UserUpdateService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
-
     if (!user) throw new ApiError("user not found", 404);
 
     const updateData: any = {};
-
+    let emailUpdateMessage = false; 
     if (body.name) {
       updateData.name = body.name;
     }
-
     if (body.phoneNumber) {
       updateData.phoneNumber = body.phoneNumber;
     }
+    if (body.email && body.email !== user.email) {
+      const emailExists = await this.prisma.user.findFirst({
+        where: { email: body.email },
+      });
+      if (emailExists) {
+        throw new ApiError("Email already in use", 400);
+      }
+      updateData.pendingEmail = body.email;
+      updateData.emailVerified = false;
+      emailUpdateMessage = true;
 
+      const token = sign(
+        {
+          id: user.id,
+          type: "emailUpdate",
+          newEmail: body.email,
+        },
+        JWT_SECRET_VERIFY!,
+        { expiresIn: "5h" }
+      );
+      await this.mailservice.sendEmail(
+        body.email,
+        "Verify your new email address",
+        "verify-email-update",
+        {
+          verificationUrl: `${BASE_URL_FE}/dashboard/account/verify-email-update/${token}`,
+          name: user.name,
+        }
+      );
+    }
     if (body.password) {
       hashPassword(body.password);
       updateData.password = body.password;
     }
-
     if (profilePictureUrl) {
       if (user.profilePictureUrl) {
         await this.cloudinaryService.remove(user.profilePictureUrl);
       }
-
       const { secure_url } = await this.cloudinaryService.upload(
         profilePictureUrl
       );
-
       updateData.profilePictureUrl = secure_url;
     }
-
     if (Object.keys(updateData).length === 0) {
       return { message: "nothing to update" };
     }
-
-    await this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id },
       data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pendingEmail: true,
+        emailVerified: true,
+        profilePictureUrl: true,
+      },
     });
 
-    return { message: "update user success" };
+    return {
+      message: emailUpdateMessage 
+      ? "Verification email sent to your new email address" 
+      : "Profile updated successfully",
+      data: updatedUser,
+    };
   };
 
   userUpdatePassword = async (userId: string, body: UserUpdatePasswordDTO) => {
-    console.log("Received body:", body);
-    console.log("Body type:", typeof body);
-    console.log("oldPassword type:", typeof body.oldPassword);
-    console.log("newPassword type:", typeof body.newPassword);
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
     });
 
     if (!user) throw new ApiError("User not found", 404);
 
-    // Verify old password
     if (body.oldPassword) {
       const isValid = await comparePassword(body.oldPassword, user.password);
       if (!isValid) {

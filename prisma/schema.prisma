@@ -12,6 +12,7 @@ model User {
   id                    String                 @id @default(cuid())
   name                  String
   email                 String                 @unique
+  pendingEmail          String?
   password              String
   role                  Role                   @default(CUSTOMER)
   phoneNumber           String                 @default("")
@@ -22,17 +23,12 @@ model User {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   deletedAt             DateTime?
-  // Address relation
   addresses             Address[]
-  // Outlet admin relation
   adminOutlet           Outlet?                @relation("OutletAdmin")
   outletId              String?
   isOutletAdmin         Boolean                @default(false)
-  // Worker relations
   workers               Worker[]
-  // Customer orders
   orders                Order[]                @relation("CustomerOrders")
-  // Driver relations
   drivers               Driver[]
   userTokens            UserToken[]
   attendances           Attendance[]
