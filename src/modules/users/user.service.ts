@@ -239,7 +239,7 @@ export class UserUpdateService {
         "Verify your new email address",
         "verify-email-update",
         {
-          verificationUrl: `${BASE_URL_FE}/dashboard/account/verify-email-update/${token}`,
+          verificationUrl: `${BASE_URL_FE}/verify-email/${token}`,
           name: user.name,
         }
       );
