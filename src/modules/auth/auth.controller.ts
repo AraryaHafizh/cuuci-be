@@ -15,7 +15,8 @@ export class AuthController {
 
   emailVerification = async (req: Request, res: Response) => {
     const authUserId = String(res.locals.user.id);
-    const result = await this.authService.emailVerification(authUserId);
+    const tokenPayload = res.locals.user;
+    const result = await this.authService.emailVerification(authUserId, tokenPayload);
     return res.status(200).send(result);
   };
 

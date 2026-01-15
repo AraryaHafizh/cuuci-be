@@ -120,12 +120,42 @@ export class AuthService {
     return { message: "register user success" };
   };
 
-  emailVerification = async (authUserId: string) => {
+  emailVerification = async (authUserId: string, tokenPayload: any) => {
     const user = await this.prisma.user.findFirst({
       where: { id: authUserId },
     });
 
     if (!user) throw new ApiError("User not found", 404);
+
+    if (tokenPayload.type === "emailUpdate") {
+    if (!tokenPayload.newEmail) {
+      throw new ApiError("Invalid token", 400);
+    }
+
+    const emailTaken = await this.prisma.user.findFirst({
+      where: { 
+        email: tokenPayload.newEmail,
+        NOT: { id: authUserId }
+      },
+    });
+
+    if (emailTaken) {
+      throw new ApiError("Email already taken", 400);
+    }
+
+    await this.prisma.user.update({
+      where: { id: authUserId },
+      data: {
+        email: tokenPayload.newEmail,
+        pendingEmail: null,
+        emailVerified: true,
+        verifiedAt: new Date(),
+      },
+    });
+
+    return { message: "Email updated and verified successfully" };
+  }
+
     if (user.emailVerified) throw new ApiError("Email already verified", 400);
 
     await this.prisma.user.update({

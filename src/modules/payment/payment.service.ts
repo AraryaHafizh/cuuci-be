@@ -85,10 +85,6 @@ export class PaymentService {
   };
 
   handleWebhook = async (req: Request) => {
-    // Verify webhook signature
-    console.log("req exists:", !!req);
-    console.log("req.body:", req.body);
-    console.log("req.headers:", req.headers);
 
     const body: XenditInvoiceWebhookDTO = req.body;
     const callbackToken = req.headers["x-callback-token"];
@@ -105,7 +101,6 @@ export class PaymentService {
     });
 
     if (!payment) {
-      console.log("Payment not found for external ID:", body!.id);
       return { message: "Payment not found" };
     }
 
